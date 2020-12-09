@@ -29,6 +29,7 @@ class Gaussfit(object):
         """
         self.spec = spec1d.Spec1d(inspec, informat=informat, 
                                                      trimsec=trimsec)
+         
         self.wav = self.spec['wav']
         self.flux = self.spec['flux']
         
@@ -37,15 +38,54 @@ class Gaussfit(object):
             print("\nsky model is avaiable in the spectra.")
             
         elif 'var' in self.spec.columns:
-            self.sky = self.spec['var']
+            self.sky = np.sqrt(self.spec['var'])
             print("\nsky data is not available, so variance is being " \
                   "used as sky model.")
         else:
             print("\nError: Calculating sigma of instrument's LSF is " \
                   "not possible as there is no 'sky' or 'var' data " \
                   "included in the provided spectra.")
-            
         
-      
-                
-                    
+#-----------------------------------------------------------------------      
+     
+    def plot(self, color='g', linestyle='-', title='Sky Spectrum', 
+             xlabel='Wavelength (Angstroms)', drawstyle='steps'):
+        """
+        This function will plot the sky model for the spectra
+        """
+        
+        plt.plot(self.wav, self.sky, color=color, ls=linestyle, 
+                                                     ds=drawstyle)
+        plt.xlabel(xlabel)
+        plt.ylabel('Relative flux')
+        plt.title(title)
+        plt.xlim(self.wav[0], self.wav[-1])
+                   
+#----------------------------------------------------------------------- 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
