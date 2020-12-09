@@ -121,7 +121,7 @@ class Gaussfit(object):
             """find the indices of the closest wavelength values to the 
                given 'wavrange' from the wavelength vector."""
             
-            exact_wav_range, wav_index = self.closest_wavrange(trim_range, 
+            clst_wav_range, wav_index = self.closest_wavrange(trim_range, 
                                                           verbose=False)
             
             """trim the spectra data for the given range"""
@@ -139,9 +139,37 @@ class Gaussfit(object):
         
 #-----------------------------------------------------------------------
 
+    def collect_skydata(self, wavrange=None, wavindex=None, 
+                                      verbose=True, doplot=True):
+        """
+        This function collects the sky data for given range of 
+        wavelengths to fit with Gaussian distribution.
+        """
+        
+        """empty list to contain data"""
+        
+        flux_sky_line = []           
+        wav_sky_line = [] 
+        
+        """First collect the indices of the given wavelength range"""
+         
+        clst_wav_range, wav_index = self.closest_wavrange(wavrange, 
+                                                          verbose=True)
+        """Collect data """
+        
+        for i, p in enumerate(wav_index):
+            
+            sk = self.sky[p[0]:(p[1]+1)] 
+            wv = self.wav[p[0]:(p[1]+1)]
+            
+            flux_sky_line.append(sk)
+            wav_sky_line.append(wv)
+            
+        return flux_sky_line, wav_sky_line
 
+#-----------------------------------------------------------------------
 
-
+   
 
 
 
