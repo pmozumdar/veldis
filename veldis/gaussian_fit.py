@@ -125,8 +125,8 @@ class Gaussfit(object):
             self.sky = self.sky[xmin:xmax+1]
          
             print("\nspectra has been trimed, now...")
-            print("\nwav_min : %f" %self.wav[xmin])
-            print("\nwav_max : %f" %self.wav[xmax])
+            print("\nwav_min : %f" %self.wav[0])
+            print("\nwav_max : %f" %self.wav[-1])
         
 #-----------------------------------------------------------------------
 
