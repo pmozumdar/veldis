@@ -49,7 +49,7 @@ class Gaussfit(object):
 #-----------------------------------------------------------------------      
      
     def plot(self, color='g', linestyle='-', title='Sky Spectrum', 
-             xlabel='Wavelength (Angstroms)', drawstyle='steps'):
+                xlabel='Wavelength (Angstroms)', drawstyle='steps'):
         """
         This function will plot the sky model for the spectra
         """
@@ -63,7 +63,7 @@ class Gaussfit(object):
                    
 #-----------------------------------------------------------------------
 
-   def exact_wavrange(self, skyline):
+    def exact_wavrange(self, skylines=None):
         """
         This function extracts the exact wavelength range values 
         from the wavelength vector given a crude waverange range.
@@ -71,49 +71,64 @@ class Gaussfit(object):
         
         exact_wav_range = []
         wav_index = []
-        
-        for i, p in enumerate(sky_lines):
-            
-            wmin = abs(self.wav - p[0])
-            wmax = abs(self.wav - p[1])
-            
-            """Converting the above arrays into list so that
-               element value would be collectible given index"""
-            
-            wmin_list = wmin.tolist()
-            wmax_list = wmax.tolist()
-            
-            start_index = wmin_list.index(min(wmin))
-            stop_index = wmax_list.index(min(wmax))
-            
-            start_val = self.wav[start_index]
-            stop_val = self.wav[stop_index]
-            
-            exact_wav_range.append((start_val, stop_val))
-            wav_index.append(start_index, stop_index)
+
+        if skylines is None:
+            print("\nneed to provide a list of wavelength ranges.")
+
+        else:
+            for i, p in enumerate(skylines):
+
+                wmin = abs(self.wav - p[0])
+                wmax = abs(self.wav - p[1])
+
+                """Converting the above arrays into list so that
+                   element value would be collectible given index"""
+
+                wmin_list = wmin.tolist()
+                wmax_list = wmax.tolist()
+
+                start_index = wmin_list.index(min(wmin))
+                stop_index = wmax_list.index(min(wmax))
+
+                start_val = self.wav[start_index]
+                stop_val = self.wav[stop_index]
+
+                exact_wav_range.append((start_val, stop_val))
+                wav_index.append((start_index, stop_index))
             
         return  exact_wav_range, wav_index
        
 #-----------------------------------------------------------------------
   
-    def trimspec(sky, wavrange=None):
+    def trimspec(self, wavrange=None):
         """
         This function trims the spectra if asked
         """
         if wavrange is None:
-            print("\nShould provide a valid wavelength range.")
+            print("\nneed to provide a valid wavelength range.")
             
         else:
-            wav_min = wavrange[0]
-            wav_max = wavrange[1]
+            trim_range = [(wavrange[0], wavrange[1])]
+            
+            """find the indices of the closest wavelength values to the 
+               given 'wavrange' from the wavelength vector."""
+            
+            exact_wav_range, wav_index = self.exact_wavrange(trim_range)
+            
+            """trim the spectra data for the given range"""
+            
+            xmin = wav_index[0][0]
+            xmax = wav_index[0][1]
             
             self.wav = self.wav[xmin:xmax+1]
             self.flux = self.flux[xmin:xmax+1]
             self.sky = self.sky[xmin:xmax+1]
-            
-        except:
-            print("Error : should")
-
+         
+            print("\nspectra has been trimed, now...")
+            print("\nwav_min : %f" %self.wav[xmin])
+            print("\nwav_max : %f" %self.wav[xmax])
+        
+#-----------------------------------------------------------------------
 
 
 
