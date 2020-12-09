@@ -63,20 +63,20 @@ class Gaussfit(object):
                    
 #-----------------------------------------------------------------------
 
-    def exact_wavrange(self, skylines=None):
+    def closest_wavrange(self, wavrange=None, verbose=True):
         """
-        This function extracts the exact wavelength range values 
-        from the wavelength vector given a crude waverange range.
+        This function extracts the closest wavelength range values 
+        from the wavelength vector to a given crude waverange range.
         """
         
-        exact_wav_range = []
+        clst_wav_range = []
         wav_index = []
 
-        if skylines is None:
+        if wavrange is None:
             print("\nneed to provide a list of wavelength ranges.")
 
         else:
-            for i, p in enumerate(skylines):
+            for i, p in enumerate(wavrange):
 
                 wmin = abs(self.wav - p[0])
                 wmax = abs(self.wav - p[1])
@@ -93,10 +93,18 @@ class Gaussfit(object):
                 start_val = self.wav[start_index]
                 stop_val = self.wav[stop_index]
 
-                exact_wav_range.append((start_val, stop_val))
+                clst_wav_range.append((start_val, stop_val))
                 wav_index.append((start_index, stop_index))
+                
+            """Print the given and closest waverange if requested """
             
-        return  exact_wav_range, wav_index
+            if verbose:
+                print("\nGiven waverange(assumed) : \n")
+                [print(*wvrange) for wvrange in wavrange]
+                print("\nClosest waverange to the given ones : \n")
+                [print(*wvrange) for wvrange in clst_wav_range]
+
+        return  clst_wav_range, wav_index
        
 #-----------------------------------------------------------------------
   
@@ -113,7 +121,8 @@ class Gaussfit(object):
             """find the indices of the closest wavelength values to the 
                given 'wavrange' from the wavelength vector."""
             
-            exact_wav_range, wav_index = self.exact_wavrange(trim_range)
+            exact_wav_range, wav_index = self.closest_wavrange(trim_range, 
+                                                          verbose=False)
             
             """trim the spectra data for the given range"""
             
