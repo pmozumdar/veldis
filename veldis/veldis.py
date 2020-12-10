@@ -13,6 +13,7 @@ import glob
 #import pandas as pd
 #import seaborn as sn
 
+from scipy.constants import c
 from ppxf.ppxf import ppxf
 from specim.specfuncs import spec1d
 #from random import sample
@@ -22,7 +23,9 @@ from specim.specfuncs import spec1d
 
 class Veldis(spec1d.Spec1d):
     """
-    A class to facilitate velocity dispersion calculations.
+    A class to facilitate velocity dispersion calculations. This
+    class inherits from superclass 'Spec1d' for reading various
+    file types and important plotting properties. 
     """
     
     def __init__(self, inspec=None, informat='text', trimsec=None):
@@ -89,3 +92,40 @@ class Veldis(spec1d.Spec1d):
                 
         
 #-----------------------------------------------------------------------
+
+    def velocity_scale(self, wav_gal=None, verbose=True):
+    '''
+    This function calculates and returns the associated velocity scale 
+    of the galaxy of interest.
+    
+    Parameters
+    ---------------
+    wav_gal: array (optional)
+        An array containing the wavelengths of the galaxy spectra. 
+    
+    Returns
+    -------------
+    vel_scale: float
+        Velocity scale of the galaxy.
+    '''
+    
+    """speed of light in km/s"""
+    c = c / 10**3       
+    
+    """ Constant wav fraction per pixel """
+    if wav_gal is None:
+        frac_wav = self.wav[1] / self.wav[0]   
+    else:
+        frac_wav = wav_gal[1] / wav_gal[0] 
+        
+    """velocity scale in km/s per pixel """
+    vel_scale =  np.log(frac_wav) * c    
+    
+    if verbose:
+        print('Velocity scale = %f km/s' %vel_scale)
+    
+    return vel_scale
+
+#-----------------------------------------------------------------------
+
+    
