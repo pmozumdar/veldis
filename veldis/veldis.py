@@ -116,7 +116,8 @@ class Veldis(spec1d.Spec1d):
             frac_wav = wav_gal[1] / wav_gal[0] 
 
         """velocity scale in km/s per pixel """
-        vel_scale =  np.log(frac_wav) * (c / 10**3)   
+        vel_scale =  np.log(frac_wav) * (c / 10**3)
+        self.v = vel_scale
 
         if verbose:
             print('Velocity scale = %f km/s' %vel_scale)
@@ -124,43 +125,18 @@ class Veldis(spec1d.Spec1d):
         return vel_scale
 
 #-----------------------------------------------------------------------
-    #we may not need this function
-    def gen_dv(self, wav_gal=None, wav_temp=None, verbose=True):
-        """
-        This function calculates the parameter 'dv' to account for the 
-        difference of the initial wavelength in the galaxy and template 
-        spectra.
-
-        Parameters
-        ---------------
-        wav_gal: float (optional)
-            Starting wavelength of the galaxy spectra.
-
-        wav_temp: float (optional)
-            Starting wavelength of a template spectra in the library.
-
-        Returns
-        -------------
-        dv: float
-            The parameter to account for the initial wavelegth difference.
-        """
-
-        c = 299792.458               # speed of light in km/s
-        wav_temp = 3465.00         # starting wavelength of the templates
-                                     # in the Indo-US library.
-        dv = c*np.log(wav_temp / wav_gal) 
-        print('dv = %f ' %dv)
-
-        return dv
-#-----------------------------------------------------------------------
 
     def gen_sigma_diff(self, wav_temp=None, sig_ins=None, fwhm_temp=None,
                        doplot=True, verbose=True):
         """
         This function calculates and returns the differences in sigma 
         per wavelength between the two instrumental LSF's, used to 
-        collect galaxy spectrum and template spectra.
-
+        collect galaxy spectrum and template spectra. This function 
+        also calculates a required parameter 'dv' for velocity 
+        dispersion measuremnt. The parameter 'dv' accounts for the 
+        difference of the initial wavelength in the galaxy and template 
+        spectra. 
+        
         Parameters
         ---------------
         sig_ins: single float or array of floats
@@ -180,6 +156,13 @@ class Veldis(spec1d.Spec1d):
             An array containing the differences in sigma per wavelength.
 
         """
+        
+        """First calculate 'dv' which requires wavelength info of a
+           template spectra."""
+        
+        dv = c * np.log(wav_temp[0] / self.wav[0])
+        if verbose:
+            print('dv = %f ' %dv)
         
         """Create an array of FWHM per wavelength for the galaxy of 
            interest."""
@@ -225,4 +208,103 @@ class Veldis(spec1d.Spec1d):
     
 #-----------------------------------------------------------------------
 
-   
+    def gen_rebinned_temp(self, lib_path=None, temp_array=None,  
+                          informat='text', temp_num=None, sigma_ins=None,
+                          rand_temp=False, fwhm_temp=None, doplot=True, 
+                          verbose=True): 
+        """
+        This function generates and returns an array containing 
+        logarithmically rebinned template spectra.
+
+        Parameters
+        ---------------
+        lib_path: string
+            path to the directory containing template library.
+
+        temp_num: int
+            Number of templates that would be logarithmically rebinned.
+            If given that amount of template spectra would be fetched 
+            from library, rebinned and stored in the array.
+
+        temp_array: array
+            An array containing template file names which would be 
+            logarithmically rebinned. If given only those template 
+            spectra would be fetched from library, rebinned and stored 
+            in the array.
+
+        sig_ins: single float or array of floats
+            sigma value of the instrumental LSF used to collect galaxy
+            spectra. One can provide the average value of sigma over the
+            wavelength range or provide sigma per wavelength.
+
+        fwhm_temp: float
+            FWHM value of the template spectra.
+
+        Returns
+        -------------
+        temp_spec: array
+            An array containging all the logarithmically rebinned and 
+            normalized template spectra.
+
+        """
+        
+        """Container to store the filenames of the used temaplates from 
+           the library and the convolved, logarithmically rebinned and  
+           normalized template spectra."""
+
+        templates = []
+        temp_spec = []
+        
+        """Colleting the template files to be used """
+        
+        if lib_path is None:
+            if temp_array is None:
+                print("\nError : need to provide a string containing the "\
+                      "path to the template library or an array containing "\
+                      "filenames and paths of the templates, none given.")
+            else:
+                if temp_num is None:
+                    templates =  temp_array
+                else:
+                    templates = temp_array[:temp_num]
+                    
+        else:
+            if temp_num is None:
+                templates =  glob.glob(lib_path)
+            else:
+                templates = glob.glob(lib_path)[:temp_num]
+
+        """Collect the sigma difference data to convolve the template 
+           spectra """
+
+        wav_temp = spec1d.Spec1d(templates[0], informat=informat,
+                                                    verbose=False)['wav']
+        
+        sigma_diff = self.gen_sigma_diff(wav_temp=wav_temp, sig_ins=sig_ins,
+                                         fwhm_temp=fwhm_temp)
+        
+        wav_range = [wav_temp[0], wav_temp[-1]]
+        
+        """Logarithmically rebin the template spectra.The array containing
+           this data should have a shape of [nPixels, nTemplates]"""
+        
+        for i, file in enumerate(templates):
+
+            temp_data = spec1d.Spec1d(file, informat=informat, verbose=False)
+            temp_flux = temp_data['flux']
+  
+            convolved_temp = util.gaussian_filter1d(temp_flux, sigma_diff)  
+
+            temp_rebinned = util.log_rebin(wav_range, convolved_temp, 
+                                                          velscale=self.v)[0]
+            nor_temp = temp_rebinned / np.median(temp_rebinned)  
+
+            temp_spec.append(nor_temp)
+            
+        temp_spec = np.array(temp_spec).T
+        #temp_spec = np.swapaxes(np.array(temp_spec), 0, 1)
+
+        return temp_spec
+
+#-----------------------------------------------------------------------
+
