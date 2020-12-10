@@ -308,3 +308,33 @@ class Veldis(spec1d.Spec1d):
 
 #-----------------------------------------------------------------------
 
+    
+    def masking(self, pixel_range=None, log_wav_gal=None):
+    '''
+    This function generate and returns a boolean array with value 'False'
+    in the pixel locations which should be excluded from the fit.
+    
+    Parameters
+    ---------------   
+    pixel_range: list
+        A list of tuples where each tuple contains start and end values 
+        of the pixel range needs to be excluded. The values should be
+        at log scale of the galaxy wavelength.
+        
+    log_wav_gal: array
+        This array contains the values of the logarithmically 
+        rebinned wavelengths.
+    
+    Returns
+    -------------
+    mask : boolean array
+        Boolean array with with value 'False' in the pixel locations 
+        which should be excluded from the fit.
+        
+    '''
+    
+    mask = np.zeros(len(log_wav_gal), dtype=bool)
+    for i,p in enumerate(pixel_range):
+        mask |= (log_wav_gal>=p[0]) & (log_wav_gal <= p[1])
+    return (~mask)
+#-----------------------------------------------------------------------
