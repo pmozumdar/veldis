@@ -311,4 +311,80 @@ class Gaussfit(object):
             if ylim is not None:
                 plt.ylim(ylim[0]*2.355, ylim[1]*2.355)
                 
-#-----------------------------------------------------------------------            
+#----------------------------------------------------------------------- 
+
+## code not in use right now....
+
+# to enable functions to test gaussianity need to import
+
+# from scipy.stats import normaltest, shapiro
+
+    def normtest(x):
+        """
+        Performs 'shapiro' and 'normality' test
+        """
+    
+        stat, ps = shapiro(x)
+        if len(x) > 7 :
+            stat, p = normaltest(x)
+        else:
+            p = 0
+
+        return ps, p
+
+    def chi2(exp, obs):
+        """
+        calculate chi2
+        """
+    
+        obs = obs / max(obs)
+        exp = exp / max(exp)
+        ch = np.sum((obs-exp)**2 / exp)
+
+        return ch
+
+
+# here we tried to get the sky lines automatically to exclude
+# manual collection
+
+#sky = []
+#sky_in =[]
+
+#i = 0
+#while i < len(variance_spectra_galaxy[600:1000]):
+    
+#    if variance_spectra_galaxy[i] < 0.07:
+#        i +=1
+#    else:
+#        j = i
+#        start_in = j
+#        base = variance_spectra_galaxy[j+2]
+        
+#        while j<len(variance_spectra_galaxy[600:1000]):
+            
+#            if j <=(start_in +2) and variance_spectra_galaxy[j] > 0.07:
+#                j +=1
+            
+#            elif j > (start_in +2) and variance_spectra_galaxy[j] > base:
+#                j +=1
+                
+#            else:
+#                stop_in = j
+#                break
+        
+#        i = j
+        
+#        if ( stop_in - start_in ) >= 3 :
+#            brd = int(np.ceil(( stop_in - start_in )*0.5) )
+
+#            if (stop_in + brd) < len(variance_spectra_galaxy):
+#                data = variance_spectra_galaxy[(start_in-brd):(stop_in + brd)]
+#                wav = lamda_galaxy[(start_in-brd):(stop_in + brd)]
+#            else:
+#                data = variance_spectra_galaxy[start_in:stop_in]
+#                wav  = lamda_galaxy [start_in:stop_in]
+
+#            sky.append((wav, data))
+#            sky_in.append((start_in, stop_in))
+        
+    
