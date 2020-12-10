@@ -35,6 +35,57 @@ class Veldis(spec1d.Spec1d):
         
         super().__init__(inspec=inspec, informat=informat, 
                                                   trimsec=trimsec)
+        self.wav = self['wav']
+        self.flux = self['flux']
+        
+        if 'var' in self.columns:
+            self.var = self['var']    
+        else:
+            print("\n Error: velocity dispersion cann't be "\
+                  "calculated without 'var' data.")
+            
+#-----------------------------------------------------------------------
+  
+    def trimspec(self, wavrange=None, doplot=True):
+        """
+        This function trims the spectra if asked given a wavelength
+        range
+        """
+        if wavrange is None:
+            print("\nneed to provide a valid wavelength range.")
+            
+        else:            
+            """find the indices of the closest wavelength values to
+               the given 'wavrange' from the wavelength vector."""
+            
+            wmin = abs(self.wav - wavrange[0])
+            wmax = abs(self.wav - wavrange[1])
+            
+            wmin_list = wmin.tolist()
+            wmax_list = wmax.tolist()
 
-#---------------------------------------------------------------------
-
+            start = wmin_list.index(min(wmin))
+            stop = wmax_list.index(min(wmax))
+            
+            """trim the spectra data for the given range"""
+            
+            self.wav = self.wav[start:stop+1]
+            self.flux = self.flux[start:stop+1]
+            
+            if self.var is not None:
+                self.var = self.var[start:stop+1]
+                
+            print("\nspectra has been trimed, now...")
+            print("\nwav_min : %f" %self.wav[0])
+            print("\nwav_max : %f" %self.wav[-1])
+            
+            if doplot:
+                """Create a new spec1d object with the trimmed data"""
+                
+                self.trim_spec = spec1d.Spec1d(wav=self.wav, flux=self.flux,
+                                          var=self.var)
+                print("\n")
+                self.trim_spec.plot()
+                
+        
+#-----------------------------------------------------------------------
