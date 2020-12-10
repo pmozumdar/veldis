@@ -94,38 +94,135 @@ class Veldis(spec1d.Spec1d):
 #-----------------------------------------------------------------------
 
     def velocity_scale(self, wav_gal=None, verbose=True):
-    '''
-    This function calculates and returns the associated velocity scale 
-    of the galaxy of interest.
-    
-    Parameters
-    ---------------
-    wav_gal: array (optional)
-        An array containing the wavelengths of the galaxy spectra. 
-    
-    Returns
-    -------------
-    vel_scale: float
-        Velocity scale of the galaxy.
-    '''
-    
-    """speed of light in km/s"""
-    c = c / 10**3       
-    
-    """ Constant wav fraction per pixel """
-    if wav_gal is None:
-        frac_wav = self.wav[1] / self.wav[0]   
-    else:
-        frac_wav = wav_gal[1] / wav_gal[0] 
+        """
+        This function calculates and returns the associated velocity scale 
+        of the galaxy of interest.
+
+        Parameters
+        ---------------
+        wav_gal: array (optional)
+            An array containing the wavelengths of the galaxy spectra. 
+
+        Returns
+        -------------
+        vel_scale: float
+            Velocity scale of the galaxy.
+        """
         
-    """velocity scale in km/s per pixel """
-    vel_scale =  np.log(frac_wav) * c    
-    
-    if verbose:
-        print('Velocity scale = %f km/s' %vel_scale)
-    
-    return vel_scale
+        """ Constant wav fraction per pixel """
+        if wav_gal is None:
+            frac_wav = self.wav[1] / self.wav[0]   
+        else:
+            frac_wav = wav_gal[1] / wav_gal[0] 
+
+        """velocity scale in km/s per pixel """
+        vel_scale =  np.log(frac_wav) * (c / 10**3)   
+
+        if verbose:
+            print('Velocity scale = %f km/s' %vel_scale)
+
+        return vel_scale
 
 #-----------------------------------------------------------------------
+    #we may not need this function
+    def gen_dv(self, wav_gal=None, wav_temp=None, verbose=True):
+        """
+        This function calculates the parameter 'dv' to account for the 
+        difference of the initial wavelength in the galaxy and template 
+        spectra.
 
+        Parameters
+        ---------------
+        wav_gal: float (optional)
+            Starting wavelength of the galaxy spectra.
+
+        wav_temp: float (optional)
+            Starting wavelength of a template spectra in the library.
+
+        Returns
+        -------------
+        dv: float
+            The parameter to account for the initial wavelegth difference.
+        """
+
+        c = 299792.458               # speed of light in km/s
+        wav_temp = 3465.00         # starting wavelength of the templates
+                                     # in the Indo-US library.
+        dv = c*np.log(wav_temp / wav_gal) 
+        print('dv = %f ' %dv)
+
+        return dv
+#-----------------------------------------------------------------------
+
+    def gen_sigma_diff(self, wav_temp=None, sig_ins=None, fwhm_temp=None,
+                       doplot=True, verbose=True):
+        """
+        This function calculates and returns the differences in sigma 
+        per wavelength between the two instrumental LSF's, used to 
+        collect galaxy spectrum and template spectra.
+
+        Parameters
+        ---------------
+        sig_ins: single float or array of floats
+            sigma value of the instrumental LSF used to collect galaxy
+            spectra. One can provide the average value of sigma over the
+            wavelength range or provide sigma per wavelength.
+
+        fwhm_temp: float
+            FWHM value of the template spectra.
+
+        wav_temp: array
+           An array containing the wavelengths of the template spectra.
+
+        Returns
+        -------------
+        sigma_diff: array
+            An array containing the differences in sigma per wavelength.
+
+        """
+        
+        """Create an array of FWHM per wavelength for the galaxy of 
+           interest."""
+        
+        if sig_ins is None:
+            print("\nError : need to provide sigma of the instrument's"\
+                  " LSF through the input argument 'sig_ins'.")
+        else:
+            if isinstance(sig_ins, array):
+                fwhm_galaxy = 2.355 * sig_ins
+            else:
+                fwhm_galaxy = 2.355 * sig_ins
+                fwhm_galaxy = np.full(len(self.wav), fwhm_galaxy)
+
+        if fwhm_temp is None:
+            print("\nAs no \'fwhm_temp\' value is provided, FWHM for "\
+                  "the Indo-US template library will be used as "\
+                  "default value")
+            
+            """ FWHMfor indo-us template library """
+            fwhm_temp = 1.35                            
+        else:
+            fwhm_temp = fwhm_temp
+
+        """Create an array interpolating FWHM of galaxy at the place of
+           template wavelengths."""
+        
+        fwhm_interp = np.interp(wav_temp, self.wav, fwhm_galaxy)
+        
+        """Calculate difference in sigma"""
+        
+        fwhm_diff = np.sqrt(fwhm_interp**2 - fwhm_temp**2)
+        sigma_diff = fwhm_diff / 2.355
+        
+        """Plot the sigma difference value per wavelength if requested"""
+        if doplot:
+            plt.figure()
+            plt.plot(wav_temp, sigma_diff,'.', label='sigma_diff')
+            plt.legend()
+            plt.show()
+
+        return sigma_diff
     
+#-----------------------------------------------------------------------
+
+   
