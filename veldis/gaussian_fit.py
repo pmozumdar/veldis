@@ -225,15 +225,16 @@ class Gaussfit(object):
         
         """Collect data if a wavrange is provided"""
         if wavrange is not None:
-            flux_sky_line, wav_sky_line = self.collect_skydata(wavrange)
+            self.flux_sky_line, \
+                      self.wav_sky_line =  self.collect_skydata(wavrange)
             
-        model_gauss = models.Gaussian1D()           # calling the Gaussian model 
+        model_gauss = models.Gaussian1D()        
         fitter_gauss = fitting.LevMarLSQFitter()
             
         """Fit each skyline to Gaussian profile and plot"""
         best_fit = []
         
-        for f, w in zip(flux_sky_line, wav_sky_line):
+        for f, w in zip(self.flux_sky_line, self.wav_sky_line):
             
             f = f / np.median(f)
             x = w - np.median(w)
@@ -261,11 +262,59 @@ class Gaussfit(object):
             plt.legend()
             plt.show()
             
+        return  best_fit
+    
+#-----------------------------------------------------------------------            
 
+    def sigma_inst(self, best_fit=None, doplot=True, ylim=None):
+        """
+        Collect the 'stddev' of the fitted skylines
+        """
+         
+        if best_fit is None:
+            print("\nError: need to provide a list of best fit "\
+                  "model, none given.")
+        else:
+            sig = []
+            for i, p in enumerate(best_fit):
+                sig.append(p.stddev.value)
 
+            avg_sig = np.sum(sig) / len(sig)
+            print('average : %f' %avg_sig)
+            self.sig = sig
 
+        if doplot:
+            
+            wav = np.zeros(len(self.wav_sky_line))
+            fwhm = np.zeros(len(self.wav_sky_line))
+            
+            for i, p in enumerate(self.wav_sky_line):
+                wav[i] = np.median(p)
+                fwhm[i] = sig[i] * 2.355
+            self.fwhm = fwhm  
+            
+            plt.figure()
+            ax1 = plt.subplot(211)
+            plt.plot(wav, sig, '.', ms=10)
+            #ax1.set_xticklabels([])
+            plt.setp(ax1.get_xticklabels(), visible=False)
+            plt.ylabel('Sigma')
+            if ylim is not None:
+                plt.ylim(ylim[0], ylim[1])
+            plt.subplots_adjust(hspace=0.001)
+            
+            ax2 = plt.subplot(212, sharex=ax1)
+            plt.plot(wav, fwhm, '.', ms=10)
+            plt.xlabel('median wavelength of selected sky lines')
+            plt.ylabel('FWHM')
+            plt.setp(ax2.get_xticklabels(), visible=True)
+            if ylim is not None:
+                plt.ylim(ylim[0]*2.355, ylim[1]*2.355)
+                
+#-----------------------------------------------------------------------            
 
-
+                
+                
 
 
 
