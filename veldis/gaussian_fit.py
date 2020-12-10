@@ -210,8 +210,57 @@ class Gaussfit(object):
             plt.title(title)
             
 #-----------------------------------------------------------------------            
+    
+    def fit_gauss(self, wavrange=None, flux_sky_line=None, 
+                  wav_sky_line=None):
+        """
+        This function fits each sky line to a Gaussian profile. Before 
+        performing the fit each flux array has been normalized with the 
+        median value of the array. Both the 'flux' and 'wav' data 
+        have also been shifted. The 'flux'data has been shifted by 
+        subtracting the minimum value of the data array so that the tails
+        touch the x axis. And the 'wav' data has been shifted by the
+        median value of the 'wav' array.
+        """
         
+        """Collect data if a wavrange is provided"""
+        if wavrange is not None:
+            flux_sky_line, wav_sky_line = self.collect_skydata(wavrange)
+            
+        model_gauss = models.Gaussian1D()           # calling the Gaussian model 
+        fitter_gauss = fitting.LevMarLSQFitter()
+            
+        """Fit each skyline to Gaussian profile and plot"""
+        best_fit = []
+        
+        for f, w in zip(flux_sky_line, wav_sky_line):
+            
+            f = f / np.median(f)
+            x = w - np.median(w)
+            y = f - np.min(f)
+            
+            best_fit_gauss = fitter_gauss(model_gauss, x, y)
+            best_fit.append(best_fit_gauss)
+            
+            print(best_fit_gauss)
+            
+            plt.figure()
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
+            ax1.plot(w, f)
+            ax1.set_title('Original sky data')
+            ax1.set_xlabel('Wavelength')
+            ax1.set_ylabel('Relative flux')
+
+
+            ax2.plot(x, y, label='shifted sky data') 
+            ax2.plot(x, best_fit_gauss(x), 'r', label='Gaussian fit')
+            ax2.set_title('Fit to Gaussian')
+            ax2.set_xlabel('shifted wavelength')
+            ax2.set_ylabel('shifted relative flux')
+            plt.legend()
+            plt.show()
+            
 
 
 
