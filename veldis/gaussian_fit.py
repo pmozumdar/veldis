@@ -27,7 +27,7 @@ class Gaussfit(object):
         
         Describe the input arguments here....
         """
-        self.spec = spec1d.Spec1d(inspec, informat=informat, 
+        self.spec = spec1d.Spec1d(inspec=inspec, informat=informat, 
                                                      trimsec=trimsec)
          
         self.wav = self.spec['wav']
