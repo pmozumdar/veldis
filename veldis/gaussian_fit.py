@@ -49,7 +49,7 @@ class Gaussfit(object):
 #-----------------------------------------------------------------------      
      
     def plot(self, color='g', linestyle='-', title='Sky Spectrum', 
-                xlabel='Wavelength (Angstroms)', drawstyle='steps'):
+             xlabel='Wavelength (Angstroms)', drawstyle='steps'):
         """
         This function will plot the sky model for the spectra
         """
@@ -140,7 +140,7 @@ class Gaussfit(object):
 #-----------------------------------------------------------------------
 
     def collect_skydata(self, wavrange=None, wavindex=None, 
-                                      verbose=True, doplot=True):
+                        verbose=True, doplot=True):
         """
         This function collects the sky data for given range of 
         wavelengths to fit with Gaussian distribution.
@@ -154,7 +154,7 @@ class Gaussfit(object):
         """First collect the indices of the given wavelength range"""
          
         clst_wav_range, wav_index = self.closest_wavrange(wavrange, 
-                                                          verbose=True)
+                                                        verbose=True)
         """Collect data """
         
         for i, p in enumerate(wav_index):
@@ -165,11 +165,52 @@ class Gaussfit(object):
             flux_sky_line.append(sk)
             wav_sky_line.append(wv)
             
+        """Plot a bar over the skylines going to fit if requested"""
+        
+        if doplot:
+            
+            self.plot_skyline(wav_sky_line)
+            
         return flux_sky_line, wav_sky_line
 
 #-----------------------------------------------------------------------
 
-   
+    def plot_skyline(self, wav_sky_line=None, color='y', title=None, 
+                     label='sky lines', width=10.0):
+        
+        """
+        A function to plot bars over the skylines going to fit with a
+        Gaussian.
+        """
+        if wav_sky_line is None:
+            print("\n Error: Need to provide wavelengths of the skylines")
+            
+        else:
+            if title is None:
+                title = 'Sky lines to fit'
+                
+            cen = np.zeros(len(wav_sky_line))
+            wd = np.zeros(len(wav_sky_line))
+            
+            for i, p in enumerate(wav_sky_line):
+                
+                cen[i]= np.median(p)
+                if len(p) >= width:
+                    wd[i] = len(p)
+                else:
+                    wd[i] = width 
+                    
+            plt.figure()
+            plt.plot(self.wav, self.sky)
+            plt.bar(cen, height=max(self.sky), width=wd, color=color, 
+                    label=label)
+            plt.xlabel('Wavelength')
+            plt.ylabel('Relative Flux')
+            plt.legend()
+            plt.title(title)
+            
+#-----------------------------------------------------------------------            
+        
 
 
 
