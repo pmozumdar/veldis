@@ -174,6 +174,9 @@ class Veldis(spec1d.Spec1d):
             plt.title('logarithmically rebinned noise')
             plt.show()
         
+        """For now to facilitate masking"""
+        self.wav_rebinned = wav_rebinned
+        
         return flux_rebinned, noise_rebinned, start
     
 #-----------------------------------------------------------------------
@@ -360,8 +363,8 @@ class Veldis(spec1d.Spec1d):
 
 #-----------------------------------------------------------------------
     
-    def masking(self, pixel_range=None, log_wav_gal=None):
-        '''
+    def masking(self, pixel_range=None, wav_rebinned=None):
+        """
         This function generate and returns a boolean array with value 'False'
         in the pixel locations which should be excluded from the fit. The
         size of the array is equal to the size of the logarithmically
@@ -372,9 +375,9 @@ class Veldis(spec1d.Spec1d):
         pixel_range: list
             A list of tuples where each tuple contains start and end values 
             of the pixel range needs to be excluded. The values should be
-            at log scale of the galaxy wavelength.
+            from logarithmically rebinned galaxy wavelength.
 
-        log_wav_gal: array
+        wav_rebinned: array
             This array contains the values of the logarithmically 
             rebinned wavelengths.
 
@@ -384,11 +387,18 @@ class Veldis(spec1d.Spec1d):
             Boolean array with with value 'False' in the pixel locations 
             which should be excluded from the fit.
 
-        '''
-
-        mask = np.zeros(len(log_wav_gal), dtype=bool)
-        for i,p in enumerate(pixel_range):
-            mask |= (log_wav_gal>=p[0]) & (log_wav_gal <= p[1])
+        """
+        if wav_rebinned is None:
+            wav_rebinned = self.wav_rebinned
+        else:
+            wav_rebinned = wav_rebinned
+        
+        """Create a boolean array of the length of rebinned wavelength"""
+        
+        mask = np.zeros(len(wav_rebinned), dtype=bool)
+        for i, p in enumerate(pixel_range):
+            mask |= (wav_rebinned>=p[0]) & (wav_rebinned <= p[1])
+            
         return (~mask)
 
 #-----------------------------------------------------------------------
