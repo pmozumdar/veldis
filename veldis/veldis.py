@@ -416,7 +416,7 @@ class Veldis(spec1d.Spec1d):
                                                   verbose=False)['wav']
         
         if z is None:
-            print("\n Error : need to provide redshfit)
+            print("\n Error : need to provide redshfit")
                   
         else:
             wav_min = wav_temp[0] * (1+z)
