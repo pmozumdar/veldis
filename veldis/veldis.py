@@ -226,7 +226,7 @@ class Veldis(spec1d.Spec1d):
             print("\nError : need to provide sigma of the instrument's"\
                   " LSF through the input argument 'sig_ins'.")
         else:
-            if isinstance(sig_ins, array):
+            if isinstance(sig_ins, np.ndarray):
                 fwhm_galaxy = 2.355 * sig_ins
             else:
                 fwhm_galaxy = 2.355 * sig_ins
@@ -264,7 +264,7 @@ class Veldis(spec1d.Spec1d):
 #-----------------------------------------------------------------------
 
     def gen_rebinned_temp(self, lib_path=None, temp_array=None,  
-                          informat='text', temp_num=None, sigma_ins=None,
+                          informat='text', temp_num=None, sig_ins=None,
                           rand_temp=False, fwhm_temp=None, doplot=True, 
                           verbose=True): 
         """
@@ -303,11 +303,9 @@ class Veldis(spec1d.Spec1d):
 
         """
         
-        """Container to store the filenames of the used temaplates from 
-           the library and the convolved, logarithmically rebinned and  
-           normalized template spectra."""
+        """Container to store the the convolved, logarithmically 
+           rebinned and normalized template spectra."""
 
-        templates = []
         temp_spec = []
         
         """Colleting the template files to be used """
@@ -400,5 +398,49 @@ class Veldis(spec1d.Spec1d):
             mask |= (wav_rebinned>=p[0]) & (wav_rebinned <= p[1])
             
         return (~mask)
+
+#-----------------------------------------------------------------------
+
+    def check_temp_coverage(self, intemp=None, informat='text',
+                            z=None):
+        """
+        This function will check the range of wavelength the template
+        spectra will cover given a particular redshift.
+        """
+        
+        if intemp is None:
+            print("\n Error : need to provide a string containing "\
+                  "path to a template file")
+        else:
+            wav_temp = spec1d.Spec1d(inspec=intemp, informat=informat,
+                                                  verbose=False)['wav']
+        
+        if z is None:
+            print("\n Error : need to provide redshfit)
+                  
+        else:
+            wav_min = wav_temp[0] * (1+z)
+            wav_max = wav_temp[-1] * (1+z)
+
+            print("\nCovered range for redshift %f : "\
+                  "%f - %f" %(z, wav_min, wav_max))
+                  
+#-----------------------------------------------------------------------
+
+    def cal_redshift(self, **kwargs):
+        """
+        This function will calculate redshift comparing given observed
+        wavelength with actual emitted wavelength. Currently compares
+        CaII K+H, G-band, MgI b and NaI D.
+        """
+              
+        wav_dict = {'CaK' : 3933.67, 'CaH' : 3968.47, 'G' : 4305.0,
+                    'Mgb' : 5176, 'NaD' : 5895.92}
+        
+        for key, val in kwargs.items():
+            if key in wav_dict.keys():   
+                z = (val / wav_dict[key]) - 1.0
+                print("\n Observed wavelength for %s : %f" %(key, val))
+                print("\nredshift z : %f" %z)
 
 #-----------------------------------------------------------------------
