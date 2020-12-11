@@ -74,9 +74,7 @@ class Veldis(spec1d.Spec1d):
             
             self.wav = self.wav[start:stop+1]
             self.flux = self.flux[start:stop+1]
-            
-            if self.var is not None:
-                self.var = self.var[start:stop+1]
+            self.var = self.var[start:stop+1]
                 
             print("\nspectra has been trimed, now...")
             print("\nwav_min : %f" %self.wav[0])
@@ -117,13 +115,67 @@ class Veldis(spec1d.Spec1d):
 
         """velocity scale in km/s per pixel """
         vel_scale =  np.log(frac_wav) * (c / 10**3)
-        self.v = vel_scale
 
         if verbose:
             print('Velocity scale = %f km/s' %vel_scale)
 
         return vel_scale
 
+#-----------------------------------------------------------------------
+
+    def cal_parm(self, z=None, doplot=True):
+        """
+        This function will calculate some required parameters for
+        velocity dispersion calculation like logarithimically
+        rebinned galaxy spectra (flux and wavelength) and noise data,
+        velocity scale, initial guess for velocity dispersion 
+        parameters to be estimated.
+        """
+        """First get the velocity scale"""
+        self.v = self.velocity_scale()
+        
+        """Logarithmically rebinning the galaxy spectra (both flux
+           and wavelength)"""
+        
+        wav_range = [self.wav[0], self.wav[-1]] 
+        flux_norm = self.flux / np.median(self.flux)
+        flux_rebinned, wav_rebinned = util.log_rebin(wav_range, 
+                                      flux_norm, velscale=self.v)[:2]
+        
+        """Logarithmically rebin nosie. We are using square root 
+           of variance as noise. We need to normalize noise the 
+           same way we have normalized flux."""
+        
+        noise = np.sqrt(self.var) 
+        noise_norm = noise / np.median(self.flux)
+        noise_rebinned = util.log_rebin(wav_range, noise_norm,
+                                        velscale=self.v)[0]
+        
+        """Initial guess for velocity and velocity dispersion"""
+        if z is None:
+            print("\nError : redshift is required to guess the "\
+                  "velocity.")
+        else:
+            """Using eq.(8) of Cappellari(2017). 'vel' is in km/s"""
+            
+            vel = (c / 10**3) * np.log(1 + z)   
+            start = [vel, 200.0]
+            
+        """Plot logarithmically rebinned galaxy spectra and noise
+           if requested"""    
+        if doplot:
+            plt.figure()
+            plt.plot(wav_rebinned, flux_rebinned)
+            plt.title('logarithmically rebinned galaxy spectra')
+            plt.show()
+            
+            plt.figure()
+            plt.plot(wav_rebinned, noise_rebinned)
+            plt.title('logarithmically rebinned noise')
+            plt.show()
+        
+        return flux_rebinned, noise_rebinned, start
+    
 #-----------------------------------------------------------------------
 
     def gen_sigma_diff(self, wav_temp=None, sig_ins=None, fwhm_temp=None,
@@ -307,34 +359,36 @@ class Veldis(spec1d.Spec1d):
         return temp_spec
 
 #-----------------------------------------------------------------------
-
     
     def masking(self, pixel_range=None, log_wav_gal=None):
-    '''
-    This function generate and returns a boolean array with value 'False'
-    in the pixel locations which should be excluded from the fit.
-    
-    Parameters
-    ---------------   
-    pixel_range: list
-        A list of tuples where each tuple contains start and end values 
-        of the pixel range needs to be excluded. The values should be
-        at log scale of the galaxy wavelength.
-        
-    log_wav_gal: array
-        This array contains the values of the logarithmically 
-        rebinned wavelengths.
-    
-    Returns
-    -------------
-    mask : boolean array
-        Boolean array with with value 'False' in the pixel locations 
-        which should be excluded from the fit.
-        
-    '''
-    
-    mask = np.zeros(len(log_wav_gal), dtype=bool)
-    for i,p in enumerate(pixel_range):
-        mask |= (log_wav_gal>=p[0]) & (log_wav_gal <= p[1])
-    return (~mask)
+        '''
+        This function generate and returns a boolean array with value 'False'
+        in the pixel locations which should be excluded from the fit. The
+        size of the array is equal to the size of the logarithmically
+        rebinned galaxy flux or wavelength.
+
+        Parameters
+        ---------------   
+        pixel_range: list
+            A list of tuples where each tuple contains start and end values 
+            of the pixel range needs to be excluded. The values should be
+            at log scale of the galaxy wavelength.
+
+        log_wav_gal: array
+            This array contains the values of the logarithmically 
+            rebinned wavelengths.
+
+        Returns
+        -------------
+        mask : boolean array
+            Boolean array with with value 'False' in the pixel locations 
+            which should be excluded from the fit.
+
+        '''
+
+        mask = np.zeros(len(log_wav_gal), dtype=bool)
+        for i,p in enumerate(pixel_range):
+            mask |= (log_wav_gal>=p[0]) & (log_wav_gal <= p[1])
+        return (~mask)
+
 #-----------------------------------------------------------------------
