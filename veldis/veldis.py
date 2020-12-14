@@ -212,10 +212,11 @@ class Veldis(spec1d.Spec1d):
 
         """
         
-        """First calculate 'dv' which requires wavelength info of a
-           template spectra."""
+        """First calculate 'dv' in km/s which requires wavelength info 
+           of a template spectra."""
         
-        dv = c * np.log(wav_temp[0] / self.wav[0])
+        dv = (c / 10**3) * np.log(wav_temp[0] / self.wav[0])
+        
         if verbose:
             print('dv = %f ' %dv)
         
