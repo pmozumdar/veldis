@@ -148,7 +148,8 @@ class Veldis(spec1d.Spec1d):
         
         noise = np.sqrt(self.var) 
         #noise = self.var
-        noise_norm = noise / np.median(self.flux)
+        #noise_norm = noise / np.median(self.flux)
+        noise_norm = noise
         noise_rebinned = util.log_rebin(wav_range, noise_norm,
                                         velscale=self.v)[0]
         
@@ -460,13 +461,13 @@ class Veldis(spec1d.Spec1d):
         self.flux_rebinned, self.noise_rebinned, self.start = \
                                   self.cal_parm(z=z, doplot=doplot)
 
-        self.tem_spec = self.gen_rebinned_temp(lib_path=lib_path, 
+        self.temp_spec = self.gen_rebinned_temp(lib_path=lib_path, 
                         temp_array=temp_array, informat=informat, 
                         temp_num=temp_num, sig_ins=sig_ins,
                         rand_temp=rand_temp, fwhm_temp=fwhm_temp, 
                         doplot=doplot, verbose=verbose)
         
-        self.mask = self.masking(pixel_range=mask_reg)
+        self.mask_region = self.masking(pixel_range=mask_reg)
 
         if degree is None:
             deg = np.arange(4, 6)
@@ -484,7 +485,7 @@ class Veldis(spec1d.Spec1d):
             pp = ppxf(self.temp_spec, self.flux_rebinned, 
                       self.noise_rebinned, self.v, self.start, 
                       moments=moments, plot=plot, vsyst=self.vsyst, 
-                      degree=d, mask=self.mask, quiet=quiet, 
+                      degree=d, mask=self.mask_region, quiet=quiet, 
                       lam=np.exp(self.wav_rebinned))
 
             vel_dis[i] = pp.sol[1]
@@ -507,7 +508,7 @@ class Veldis(spec1d.Spec1d):
         This function plots velocity dispersion over degree
         """
         plt.figure()
-        plt.plot(self.vel_dis, self.deg, 'b.', ms=10)
+        plt.plot(self.deg, self.vel_dis, 'b.', ms=10)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         if xlim is None:
@@ -523,7 +524,7 @@ class Veldis(spec1d.Spec1d):
         This function plots error over degree
         """
         plt.figure()
-        plt.plot(self.error, self.deg, 'r.', ms=10)
+        plt.plot(self.deg, self.error, 'r.', ms=10)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         if xlim is None:
