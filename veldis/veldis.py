@@ -480,7 +480,7 @@ class Veldis(spec1d.Spec1d):
         
         """Do the velocity dispersion calculation """
         for i, d in enumerate(deg):
-            print('\ndegree : %d' %d])
+            print('\ndegree : %d' %d)
             pp = ppxf(self.temp_spec, self.flux_rebinned, 
                       self.noise_rebinned, self.v, self.start, 
                       moments=moments, plot=plot, vsyst=self.vsyst, 
