@@ -147,6 +147,7 @@ class Veldis(spec1d.Spec1d):
            same way we have normalized flux."""
         
         noise = np.sqrt(self.var) 
+        #noise = self.var
         noise_norm = noise / np.median(self.flux)
         noise_rebinned = util.log_rebin(wav_range, noise_norm,
                                         velscale=self.v)[0]
@@ -212,13 +213,13 @@ class Veldis(spec1d.Spec1d):
 
         """
         
-        """First calculate 'dv' in km/s which requires wavelength info 
-           of a template spectra."""
+        """First calculate 'vsyst' in km/s which requires wavelength 
+           info of a template spectra."""
         
-        dv = (c / 10**3) * np.log(wav_temp[0] / self.wav[0])
+        self.vsyst = (c / 10**3) * np.log(wav_temp[0] / self.wav[0])
         
         if verbose:
-            print('dv = %f ' %dv)
+            print('vsyst = %f ' %self.vsyst)
         
         """Create an array of FWHM per wavelength for the galaxy of 
            interest."""
@@ -355,8 +356,8 @@ class Veldis(spec1d.Spec1d):
 
             temp_spec.append(nor_temp)
             
-        temp_spec = np.array(temp_spec).T
-        #temp_spec = np.swapaxes(np.array(temp_spec), 0, 1)
+        #temp_spec = np.array(temp_spec).T
+        temp_spec = np.swapaxes(np.array(temp_spec), 0, 1)
 
         return temp_spec
 
