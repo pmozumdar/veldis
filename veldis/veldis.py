@@ -495,5 +495,24 @@ class Veldis(spec1d.Spec1d):
             if show_weight:
                 [print('%d, %f'%(i,w)) for i,w in enumerate(pp.weights)\
                                                                if w>10]
+        self.vel_dis = vel_dis
+        self.error = error
+        self.deg = deg
+
+#----------------------------------------------------------------------------
+
+    def plot_veldis(self, xlim=None, xlabel='degree', 
+                    ylabel='velocity dispersion'):
+        """
+        This function plots velocity dispersion over degree
+        """
+        plt.figure()
+        plt.plot(self.vel_dis, self.deg, 'b.', ms=10)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        if xlim is None:
+            pass
+        else:
+            plt.xlim(xlim[0], xlim[1])
 
 #----------------------------------------------------------------------------
