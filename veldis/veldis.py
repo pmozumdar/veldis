@@ -516,3 +516,19 @@ class Veldis(spec1d.Spec1d):
             plt.xlim(xlim[0], xlim[1])
 
 #----------------------------------------------------------------------------
+
+    def plot_error(self, xlim=None, xlabel='degree',
+                   ylabel='error'):
+        """
+        This function plots error over degree
+        """
+        plt.figure()
+        plt.plot(self.error, self.deg, 'r.', ms=10)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        if xlim is None:
+            pass
+        else:
+            plt.xlim(xlim[0], xlim[1])
+
+#---------------------------------------------------------------------------
