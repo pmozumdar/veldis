@@ -446,3 +446,54 @@ class Veldis(spec1d.Spec1d):
                 print("\nredshift z : %f" %z)
 
 #-----------------------------------------------------------------------
+
+    def cal_veldis(self, z=None, lib_path=None, temp_array=None,
+                   informat='text', temp_num=None, sig_ins=None,
+                   rand_temp=False, fwhm_temp=None, doplot=True,
+                   verbose=True, moments=4, plot=True, degree=None, 
+                   mask_reg=None, quiet=False, show_weight=False):
+        """
+        This function calculates velocity dispersion using 'ppxf'
+        method.
+        """
+        """First Setup some parameters """
+        self.flux_rebinned, self.noise_rebinned, self.start = \
+                                  self.cal_parm(z=z, doplot=doplot)
+
+        self.tem_spec = self.gen_rebinned_temp(lib_path=lib_path, 
+                        temp_array=temp_array, informat=informat, 
+                        temp_num=temp_num, sig_ins=sig_ins,
+                        rand_temp=rand_temp, fwhm_temp=fwhm_temp, 
+                        doplot=doplot, verbose=verbose)
+        
+        self.mask = self.masking(pixel_range=mask_reg)
+
+        if degree is None:
+            deg = np.arange(4, 6)
+        else:
+            deg = np.arange(degree[0], degree[1])
+        
+        """Setup the containers to store velocity dispersion and error 
+           values """
+        vel_dis = np.zeros(len(deg)) 
+        error = np.zeros(len(deg))
+        
+        """Do the velocity dispersion calculation """
+        for i, d in enumerate(deg):
+            print('\ndegree : %d' %d])
+            pp = ppxf(self.temp_spec, self.flux_rebinned, 
+                      self.noise_rebinned, self.v, self.start, 
+                      moments=moments, plot=plot, vsyst=self.vsyst, 
+                      degree=d, mask=self.mask, quiet=quiet, 
+                      lam=np.exp(self.wav_rebinned))
+
+            vel_dis[i] = pp.sol[1]
+            error[i] = pp.error[1]
+            if plot:
+                plt.figure()
+
+            if show_weight:
+                [print('%d, %f'%(i,w)) for i,w in enumerate(pp.weights)\
+                                                               if w>10]
+
+#----------------------------------------------------------------------------
