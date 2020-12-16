@@ -110,7 +110,7 @@ class Gaussfit(object):
   
     def trimspec(self, wavrange=None):
         """
-        This function trims the spectra if asked
+        This function trims the spectra if asked.
         """
         if wavrange is None:
             print("\nneed to provide a valid wavelength range.")
@@ -268,7 +268,7 @@ class Gaussfit(object):
 
     def sigma_inst(self, best_fit=None, doplot=True, ylim=None):
         """
-        Collect the 'stddev' of the fitted skylines
+        Collect the 'stddev' of the fitted skylines.
         """
          
         if best_fit is None:
@@ -321,7 +321,7 @@ class Gaussfit(object):
 
     def normtest(x):
         """
-        Performs 'shapiro' and 'normality' test
+        Performs 'shapiro' and 'normality' test.
         """
     
         stat, ps = shapiro(x)
