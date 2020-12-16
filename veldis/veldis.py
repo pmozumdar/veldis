@@ -123,7 +123,7 @@ class Veldis(spec1d.Spec1d):
 
 #-----------------------------------------------------------------------
 
-    def cal_parm(self, z=None, doplot=True):
+    def cal_parm(self, z=None, doplot=True, norm=True):
         """
         This function will calculate some required parameters for
         velocity dispersion calculation like logarithimically
@@ -139,19 +139,22 @@ class Veldis(spec1d.Spec1d):
         
         wav_range = [self.wav[0], self.wav[-1]] 
         flux_norm = self.flux / np.median(self.flux)
-        flux_rebinned, wav_rebinned = util.log_rebin(wav_range, 
-                                      flux_norm, velscale=self.v)[:2]
+        self.flux_rebinned, self.wav_rebinned = util.log_rebin(
+                        wav_range, flux_norm, velscale=self.v)[:2]
         
         """Logarithmically rebin nosie. We are using square root 
            of variance as noise. We need to normalize noise the 
            same way we have normalized flux."""
         
-        noise = np.sqrt(self.var) 
-        #noise = self.var
-        #noise_norm = noise / np.median(self.flux)
-        noise_norm = noise
-        noise_rebinned = util.log_rebin(wav_range, noise_norm,
-                                        velscale=self.v)[0]
+        noise = np.sqrt(self.var)
+        """temporarilly using a flag to choose whether or not
+           to normalize noise"""
+        if norm:
+            noise_norm = noise / np.median(self.flux)
+        else:
+            noise_norm = noise
+        self.noise_rebinned = util.log_rebin(wav_range,
+                                   noise_norm, velscale=self.v)[0]
         
         """Initial guess for velocity and velocity dispersion"""
         if z is None:
@@ -161,25 +164,25 @@ class Veldis(spec1d.Spec1d):
             """Using eq.(8) of Cappellari(2017). 'vel' is in km/s"""
             
             vel = (c / 10**3) * np.log(1 + z)   
-            start = [vel, 200.0]
+            self.start = [vel, 200.0]
             
         """Plot logarithmically rebinned galaxy spectra and noise
            if requested"""    
         if doplot:
             plt.figure()
-            plt.plot(wav_rebinned, flux_rebinned)
+            plt.plot(self.wav_rebinned, self.flux_rebinned)
             plt.title('logarithmically rebinned galaxy spectra')
             plt.show()
             
             plt.figure()
-            plt.plot(wav_rebinned, noise_rebinned)
+            plt.plot(self.wav_rebinned, self.noise_rebinned)
             plt.title('logarithmically rebinned noise')
             plt.show()
         
-        """For now to facilitate masking"""
-        self.wav_rebinned = wav_rebinned
-        
-        return flux_rebinned, noise_rebinned, start
+        """a return statement isn't required anymore as 'flux_rebinned',
+           'noise_rebinned' and ' start' are accessible as instance
+           attribute."""
+        #return flux_rebinned, noise_rebinned, start
     
 #-----------------------------------------------------------------------
 
@@ -448,7 +451,7 @@ class Veldis(spec1d.Spec1d):
 
 #-----------------------------------------------------------------------
 
-    def cal_veldis(self, z=None, lib_path=None, temp_array=None,
+    def cal_veldis(self, lib_path=None, temp_array=None,
                    informat='text', temp_num=None, sig_ins=None,
                    rand_temp=False, fwhm_temp=None, doplot=True,
                    verbose=True, moments=4, plot=True, degree=None, 
@@ -458,8 +461,6 @@ class Veldis(spec1d.Spec1d):
         method.
         """
         """First Setup some parameters """
-        self.flux_rebinned, self.noise_rebinned, self.start = \
-                                  self.cal_parm(z=z, doplot=doplot)
 
         self.temp_spec = self.gen_rebinned_temp(lib_path=lib_path, 
                         temp_array=temp_array, informat=informat, 
@@ -518,8 +519,8 @@ class Veldis(spec1d.Spec1d):
 
         if ylim is None:
             pass
-        else
-            plt.ylim(ylim[0], ylim[1]
+        else:
+            plt.ylim(ylim[0], ylim[1])
 
 #----------------------------------------------------------------------------
 
@@ -539,7 +540,7 @@ class Veldis(spec1d.Spec1d):
 
         if ylim is None:
             pass
-        else
-            plt.ylim(ylim[0], ylim[1]
+        else:
+            plt.ylim(ylim[0], ylim[1])
 
 #---------------------------------------------------------------------------
