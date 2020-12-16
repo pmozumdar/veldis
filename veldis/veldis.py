@@ -502,7 +502,7 @@ class Veldis(spec1d.Spec1d):
 
 #----------------------------------------------------------------------------
 
-    def plot_veldis(self, xlim=None, xlabel='degree', 
+    def plot_veldis(self, xlim=None, ylim=None, xlabel='degree', 
                     ylabel='velocity dispersion'):
         """
         This function plots velocity dispersion over degree
@@ -516,9 +516,14 @@ class Veldis(spec1d.Spec1d):
         else:
             plt.xlim(xlim[0], xlim[1])
 
+        if ylim is None:
+            pass
+        else
+            plt.ylim(ylim[0], ylim[1]
+
 #----------------------------------------------------------------------------
 
-    def plot_error(self, xlim=None, xlabel='degree',
+    def plot_error(self, xlim=None, ylim=None, xlabel='degree',
                    ylabel='error'):
         """
         This function plots error over degree
@@ -531,5 +536,10 @@ class Veldis(spec1d.Spec1d):
             pass
         else:
             plt.xlim(xlim[0], xlim[1])
+
+        if ylim is None:
+            pass
+        else
+            plt.ylim(ylim[0], ylim[1]
 
 #---------------------------------------------------------------------------
