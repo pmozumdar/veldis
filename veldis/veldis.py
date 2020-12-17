@@ -469,8 +469,9 @@ class Veldis(spec1d.Spec1d):
                         doplot=doplot, verbose=verbose)
         else:
             self.temp_spec = temp_spec
-        
-        self.mask_region = self.masking(pixel_range=mask_reg)
+            
+        if mask_reg is not None:
+            self.mask_region = self.masking(pixel_range=mask_reg)
 
         if degree is None:
             deg = np.arange(4, 6)
@@ -485,11 +486,18 @@ class Veldis(spec1d.Spec1d):
         """Do the velocity dispersion calculation """
         for i, d in enumerate(deg):
             print('\ndegree : %d' %d)
-            pp = ppxf(self.temp_spec, self.flux_rebinned, 
-                      self.noise_rebinned, self.v, self.start, 
-                      moments=moments, plot=plot, vsyst=self.vsyst, 
-                      degree=d, mask=self.mask_region, quiet=quiet, 
-                      lam=np.exp(self.wav_rebinned))
+            if mask_reg is None:
+                pp = ppxf(self.temp_spec, self.flux_rebinned, 
+                          self.noise_rebinned, self.v, self.start, 
+                          moments=moments, plot=plot, vsyst=self.vsyst, 
+                          degree=d, quiet=quiet,
+                          lam=np.exp(self.wav_rebinned))
+            else:
+                pp = ppxf(self.temp_spec, self.flux_rebinned, 
+                          self.noise_rebinned, self.v, self.start, 
+                          moments=moments, plot=plot, vsyst=self.vsyst, 
+                          degree=d, mask=self.mask_region, quiet=quiet, 
+                          lam=np.exp(self.wav_rebinned))
 
             vel_dis[i] = pp.sol[1]
             error[i] = pp.error[1]
