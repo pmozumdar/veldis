@@ -76,7 +76,7 @@ class Veldis(spec1d.Spec1d):
             self.flux = self.flux[start:stop+1]
             self.var = self.var[start:stop+1]
                 
-            print("\nspectra has been trimed, now...")
+            print("\nspectra has been trimmed, now...")
             print("\nwav_min : %f" %self.wav[0])
             print("\nwav_max : %f" %self.wav[-1])
             
@@ -451,7 +451,7 @@ class Veldis(spec1d.Spec1d):
 
 #-----------------------------------------------------------------------
 
-    def cal_veldis(self, lib_path=None, temp_array=None,
+    def cal_veldis(self, temp_spec=None, lib_path=None, temp_array=None,
                    informat='text', temp_num=None, sig_ins=None,
                    rand_temp=False, fwhm_temp=None, doplot=True,
                    verbose=True, moments=4, plot=True, degree=None, 
@@ -461,12 +461,14 @@ class Veldis(spec1d.Spec1d):
         method.
         """
         """First Setup some parameters """
-
-        self.temp_spec = self.gen_rebinned_temp(lib_path=lib_path, 
+        if temp_spec is None:
+            self.temp_spec = self.gen_rebinned_temp(lib_path=lib_path, 
                         temp_array=temp_array, informat=informat, 
                         temp_num=temp_num, sig_ins=sig_ins,
                         rand_temp=rand_temp, fwhm_temp=fwhm_temp, 
                         doplot=doplot, verbose=verbose)
+        else:
+            self.temp_spec = temp_spec
         
         self.mask_region = self.masking(pixel_range=mask_reg)
 
