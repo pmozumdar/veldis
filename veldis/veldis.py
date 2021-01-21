@@ -123,7 +123,8 @@ class Veldis(spec1d.Spec1d):
 
 #-----------------------------------------------------------------------
 
-    def cal_parm(self, z=None, doplot=True, norm=True):
+    def cal_parm(self, z=None, doplot=True, use_velscale=True,
+                 norm=True):
         """
         This function will calculate some required parameters for
         velocity dispersion calculation like logarithimically
@@ -139,8 +140,13 @@ class Veldis(spec1d.Spec1d):
         
         wav_range = [self.wav[0], self.wav[-1]] 
         flux_norm = self.flux / np.median(self.flux)
-        self.flux_rebinned, self.wav_rebinned = util.log_rebin(
+        
+        if use_velscale:
+            self.flux_rebinned, self.wav_rebinned = util.log_rebin(
                         wav_range, flux_norm, velscale=self.v)[:2]
+        else:
+            self.flux_rebinned, self.wav_rebinned, self.v = util.log_rebin(
+                                          wav_range, flux_norm)
         
         """Logarithmically rebin nosie. We are using square root 
            of variance as noise. We need to normalize noise the 
@@ -153,9 +159,13 @@ class Veldis(spec1d.Spec1d):
             noise_norm = noise / np.median(self.flux)
         else:
             noise_norm = noise
-        self.noise_rebinned = util.log_rebin(wav_range,
-                                   noise_norm, velscale=self.v)[0]
         
+        if use_velscale:
+            self.noise_rebinned = util.log_rebin(wav_range,
+                                   noise_norm, velscale=self.v)[0]
+        else:
+            self.noise_rebinned = util.log_rebin(wav_range,
+                                                   noise_norm)[0]
         """Initial guess for velocity and velocity dispersion"""
         if z is None:
             print("\nError : redshift is required to guess the "\
