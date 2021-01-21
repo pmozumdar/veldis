@@ -124,7 +124,7 @@ class Veldis(spec1d.Spec1d):
 #-----------------------------------------------------------------------
 
     def cal_parm(self, z=None, doplot=True, use_velscale=True,
-                 norm=True):
+                 norm=True, high_z=False):
         """
         This function will calculate some required parameters for
         velocity dispersion calculation like logarithimically
@@ -137,10 +137,23 @@ class Veldis(spec1d.Spec1d):
         
         """Logarithmically rebinning the galaxy spectra (both flux
            and wavelength)"""
-        
-        wav_range = [self.wav[0], self.wav[-1]] 
+        wav_range = [self.wav[0], self.wav[-1]]
         flux_norm = self.flux / np.median(self.flux)
         
+        if high_z :
+            """
+            If the galaxy is at significant redshift, one should bring
+            the galaxy spectrum roughly to the rest-frame wavelength,
+            before calling pPXF (See Sec.2.4 of Cappellari 2017). In 
+            practice there is no need to modify the spectrum in any way,
+            given that a red shift corresponds to a linear shift of the
+            log-rebinned spectrum.One just needs to compute the wavelength
+            range in the rest-frame and adjust the instrumental resolution
+            of the galaxy observations. 
+            """
+            
+            wav_range = wav_range / (1+z)
+         
         if use_velscale:
             self.flux_rebinned, self.wav_rebinned = util.log_rebin(
                         wav_range, flux_norm, velscale=self.v)[:2]
