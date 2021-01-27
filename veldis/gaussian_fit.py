@@ -66,7 +66,7 @@ class Gaussfit(object):
     def closest_wavrange(self, wavrange=None, verbose=True):
         """
         This function extracts the closest wavelength range values 
-        from the wavelength vector to a given crude waverange range.
+        from the wavelength vector to a given crude wavelength range.
         """
         
         clst_wav_range = []
