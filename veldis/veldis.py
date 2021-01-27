@@ -116,7 +116,7 @@ class Veldis(spec1d.Spec1d):
            and wavelength)"""
         
         wav_range = np.array([self.wav[0], self.wav[-1]])
-        flux_norm = self.flux #/ np.median(self.flux)
+        flux = self.flux  #/ np.median(self.flux)
         
         if high_z :
             """
@@ -134,10 +134,10 @@ class Veldis(spec1d.Spec1d):
          
         if velscale is None:
             self.flux_rebinned, self.wav_rebinned, self.v = util.log_rebin(
-                                                      wav_range, flux_norm)
+                                                      wav_range, flux)
         else:
             self.flux_rebinned, self.wav_rebinned, self.v = util.log_rebin(
-                                    wav_range, flux_norm, velscale=velscale)
+                                    wav_range, flux, velscale=velscale)
             
         self.flux_rebinned = self.flux_rebinned / np.median(self.flux_rebinned)
         
@@ -146,20 +146,18 @@ class Veldis(spec1d.Spec1d):
            same way we have normalized flux."""
         
         noise = np.sqrt(self.var)
+        
+        self.noise_rebinned = util.log_rebin(wav_range, noise,
+                                                      velscale=self.v)[0]
+        
         """temporarilly using a flag to choose whether or not
            to normalize noise"""
         if norm:
-            noise_norm = noise #/ np.median(self.flux)
+            self.noise_rebinned = self.noise_rebinned / np.median(
+                                                            self.flux_rebinned)
         else:
-            noise_norm = noise
+            self.noise_rebinned = self.noise_rebinned
         
-        if use_velscale:
-            self.noise_rebinned = util.log_rebin(wav_range,
-                                   noise_norm, velscale=self.v)[0]
-        else:
-            self.noise_rebinned = util.log_rebin(wav_range,
-                                                   noise_norm)[0]
-        self.noise_rebinned = self.noise_rebinned / np.median(self.flux_rebinned)
         """Initial guess for velocity and velocity dispersion"""
         if z is None:
             print("\nError : redshift is required to guess the "\
