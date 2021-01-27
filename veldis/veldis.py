@@ -107,7 +107,7 @@ class Veldis(spec1d.Spec1d):
         a velocity scale  which will be used later to log_rebin noise
         and template spectra. However one can still provide a velocity
         scale which will be used to set the output number of pixels 
-        and wavelength scale.
+        and wavelength scale during rebinning.
         """
         
         #self.v = self.velocity_scale()
@@ -138,8 +138,9 @@ class Veldis(spec1d.Spec1d):
         else:
             self.flux_rebinned, self.wav_rebinned, self.v = util.log_rebin(
                                     wav_range, flux, velscale=velscale)
-            
-        self.flux_rebinned = self.flux_rebinned / np.median(self.flux_rebinned)
+        
+        norm_weight = np.median(self.flux_rebinned)
+        self.flux_rebinned = self.flux_rebinned / norm_weight
         
         """Logarithmically rebin nosie. We are using square root 
            of variance as noise. We need to normalize noise the 
@@ -153,8 +154,7 @@ class Veldis(spec1d.Spec1d):
         """temporarilly using a flag to choose whether or not
            to normalize noise"""
         if norm:
-            self.noise_rebinned = self.noise_rebinned / np.median(
-                                                            self.flux_rebinned)
+            self.noise_rebinned = self.noise_rebinned / norm_weight
         else:
             self.noise_rebinned = self.noise_rebinned
         
