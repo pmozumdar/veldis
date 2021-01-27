@@ -88,57 +88,35 @@ class Veldis(spec1d.Spec1d):
                 print("\n")
                 self.trim_spec.plot()
                 
-        
 #-----------------------------------------------------------------------
 
-    def velocity_scale(self, wav_gal=None, verbose=True):
-        """
-        This function calculates and returns the associated velocity scale 
-        of the galaxy of interest.
-
-        Parameters
-        ---------------
-        wav_gal: array (optional)
-            An array containing the wavelengths of the galaxy spectra. 
-
-        Returns
-        -------------
-        vel_scale: float
-            Velocity scale of the galaxy.
-        """
-        
-        """ Constant wav fraction per pixel """
-        if wav_gal is None:
-            frac_wav = self.wav[1] / self.wav[0]   
-        else:
-            frac_wav = wav_gal[1] / wav_gal[0] 
-
-        """velocity scale in km/s per pixel """
-        vel_scale =  np.log(frac_wav) * (c / 10**3)
-
-        if verbose:
-            print('Velocity scale = %f km/s' %vel_scale)
-
-        return vel_scale
-
-#-----------------------------------------------------------------------
-
-    def cal_parm(self, z=None, doplot=True, use_velscale=True,
+    def cal_parm(self, z=None, doplot=True, velscale=None,
                  norm=True, high_z=False):
         """
         This function will calculate some required parameters for
         velocity dispersion calculation like logarithimically
-        rebinned galaxy spectra (flux and wavelength) and noise data,
-        velocity scale, initial guess for velocity dispersion 
+        rebinned galaxy spectra (both flux and wavelength) and noise,
+        also initial guess for velocity dispersion 
         parameters to be estimated.
         """
-        """First get the velocity scale"""
-        self.v = self.velocity_scale()
+        
+        """
+        From now on velocity scale will not be calculated explicitly 
+        in order to provide to log_rebin function as input. Instead 
+        log_rebin function will do that for galaxy spectra and return
+        a velocity scale  which will be used later to log_rebin noise
+        and template spectra. However one can still provide a velocity
+        scale which will be used to set the output number of pixels 
+        and wavelength scale.
+        """
+        
+        #self.v = self.velocity_scale()
         
         """Logarithmically rebinning the galaxy spectra (both flux
            and wavelength)"""
-        wav_range = [self.wav[0], self.wav[-1]]
-        flux_norm = self.flux / np.median(self.flux)
+        
+        wav_range = np.array([self.wav[0], self.wav[-1]])
+        flux_norm = self.flux #/ np.median(self.flux)
         
         if high_z :
             """
@@ -154,12 +132,14 @@ class Veldis(spec1d.Spec1d):
             
             wav_range = wav_range / (1+z)
          
-        if use_velscale:
-            self.flux_rebinned, self.wav_rebinned = util.log_rebin(
-                        wav_range, flux_norm, velscale=self.v)[:2]
+        if velscale is None:
+            self.flux_rebinned, self.wav_rebinned, self.v = util.log_rebin(
+                                                      wav_range, flux_norm)
         else:
             self.flux_rebinned, self.wav_rebinned, self.v = util.log_rebin(
-                                          wav_range, flux_norm)
+                                    wav_range, flux_norm, velscale=velscale)
+            
+        self.flux_rebinned = self.flux_rebinned / np.median(self.flux_rebinned)
         
         """Logarithmically rebin nosie. We are using square root 
            of variance as noise. We need to normalize noise the 
@@ -169,7 +149,7 @@ class Veldis(spec1d.Spec1d):
         """temporarilly using a flag to choose whether or not
            to normalize noise"""
         if norm:
-            noise_norm = noise / np.median(self.flux)
+            noise_norm = noise #/ np.median(self.flux)
         else:
             noise_norm = noise
         
@@ -179,6 +159,7 @@ class Veldis(spec1d.Spec1d):
         else:
             self.noise_rebinned = util.log_rebin(wav_range,
                                                    noise_norm)[0]
+        self.noise_rebinned = self.noise_rebinned / np.median(self.flux_rebinned)
         """Initial guess for velocity and velocity dispersion"""
         if z is None:
             print("\nError : redshift is required to guess the "\
@@ -279,7 +260,7 @@ class Veldis(spec1d.Spec1d):
         """Calculate difference in sigma"""
         
         fwhm_diff = np.sqrt(fwhm_interp**2 - fwhm_temp**2)
-        sigma_diff = fwhm_diff / 2.355
+        sigma_diff = (fwhm_diff / 2.355 ) #/ 0.8
         
         """Plot the sigma difference value per wavelength if requested"""
         if doplot:
@@ -577,3 +558,35 @@ class Veldis(spec1d.Spec1d):
             plt.ylim(ylim[0], ylim[1])
 
 #---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
+
+#    def velocity_scale(self, wav_gal=None, verbose=True):
+#        """
+#        This function calculates and returns the associated velocity scale 
+#        of the galaxy of interest.
+#
+#        Parameters
+#        ---------------
+#        wav_gal: array (optional)
+#            An array containing the wavelengths of the galaxy spectra. 
+#
+#        Returns
+#        -------------
+#        vel_scale: float
+#            Velocity scale of the galaxy.
+#        """
+#        
+#        """ Constant wav fraction per pixel """
+#        if wav_gal is None:
+#            frac_wav = self.wav[1] / self.wav[0]   
+#        else:
+#            frac_wav = wav_gal[1] / wav_gal[0] 
+#
+#        """velocity scale in km/s per pixel """
+#        vel_scale =  np.log(frac_wav) * (c / 10**3)
+#
+#        if verbose:
+#            print('Velocity scale = %f km/s' %vel_scale)
+#
+#        return vel_scale
+
