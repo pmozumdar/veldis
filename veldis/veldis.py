@@ -189,7 +189,7 @@ class Veldis(spec1d.Spec1d):
 #-----------------------------------------------------------------------
 
     def gen_sigma_diff(self, wav_temp=None, sig_ins=None, fwhm_temp=None,
-                       doplot=True, verbose=True):
+                       doplot=True, verbose=True, high_z=False):
         """
         This function calculates and returns the differences in sigma 
         per wavelength between the two instrumental LSF's, used to 
@@ -218,11 +218,21 @@ class Veldis(spec1d.Spec1d):
             An array containing the differences in sigma per wavelength.
 
         """
+        """wavelength range of galaxy spectra"""
+        wav_range = np.array([self.wav[0], self.wav[-1]])
         
+        if high_z:
+            wav_range = wav_range / (1+z)
+            if sig_ins is None:
+                print("\nError : need to provide sigma of the instrument's"\
+                      " LSF through the input argument 'sig_ins'.")
+            else:
+                sig_ins = sig_ins / (1+z)
+            
         """First calculate 'vsyst' in km/s which requires wavelength 
            info of a template spectra."""
         
-        self.vsyst = (c / 10**3) * np.log(wav_temp[0] / self.wav[0])
+        self.vsyst = (c / 10**3) * np.log(wav_temp[0] / wav_range[0])
         
         if verbose:
             print('vsyst = %f ' %self.vsyst)
