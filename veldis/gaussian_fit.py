@@ -197,8 +197,9 @@ class Gaussfit(object):
             for i, p in enumerate(wav_sky_line):
                 
                 cen[i]= np.median(p)
-                if np.diff(p) >= width:
-                    wd[i] = np.diff(p)
+        
+                if len(p) >= width:
+                    wd[i] = len(p)
                 else:
                     wd[i] = width 
                     
