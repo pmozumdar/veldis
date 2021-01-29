@@ -20,7 +20,8 @@ class Gaussfit(object):
     order to calculate sigma of the instrument's LSF(line of sight).
     """
     
-    def __init__(self, inspec=None, informat='text', trimsec=None):
+    def __init__(self, inspec=None, informat='text', trimsec=None,
+                 wav=None, flux=None, var=None, sky=None):
         
         """
         Initialize an object by reading the provided 1d spectra
@@ -28,7 +29,8 @@ class Gaussfit(object):
         Describe the input arguments here....
         """
         self.spec = spec1d.Spec1d(inspec=inspec, informat=informat, 
-                                                     trimsec=trimsec)
+                                  trimsec=trimsec, wav=wav, flux=flux,
+                                  var=var, sky=sky)
          
         self.wav = self.spec['wav']
         self.flux = self.spec['flux']
