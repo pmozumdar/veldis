@@ -28,7 +28,8 @@ class Veldis(spec1d.Spec1d):
     file types and important plotting properties. 
     """
     
-    def __init__(self, inspec=None, informat='text', trimsec=None):
+    def __init__(self, inspec=None, informat='text', trimsec=None,
+                 wav=None, flux=None, var=None, sky=None):
         
         """
         Initialize an object by reading the provided 1d spectra
@@ -37,7 +38,9 @@ class Veldis(spec1d.Spec1d):
         """
         
         super().__init__(inspec=inspec, informat=informat, 
-                                                  trimsec=trimsec)
+                         trimsec=trimsec,  wav=wav, flux=flux,
+                         var=var, sky=sky)
+        
         self.wav = self['wav']
         self.flux = self['flux']
         
@@ -400,7 +403,7 @@ class Veldis(spec1d.Spec1d):
         Returns
         -------------
         mask : boolean array
-            Boolean array with with value 'False' in the pixel locations 
+            Boolean array with value 'False' in the pixel locations 
             which should be excluded from the fit.
 
         """
