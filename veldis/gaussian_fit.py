@@ -36,8 +36,20 @@ class Gaussfit(object):
         self.flux = self.spec['flux']
         
         if 'sky' in self.spec.columns:
-            self.sky = self.spec['sky']
-            print("\nsky model is avaiable in the spectra.")
+            sky = self.spec['sky']
+            """check whether 'sky' column is not just zeros"""
+            if np.max(sky)==0 and np.min(sky)==0:
+                print('\nsky data only contains zeros')
+                if 'var' in self.spec.columns:
+                    self.sky = np.sqrt(self.spec['var'])
+                    print("\nvariance is being used as sky model.")
+                else:
+                    print("\nError: Calculating sigma of instrument's" \
+                          "LSF is not possible as there is no 'sky' or" \
+                          "'var' data included in the provided spectra.")
+            else:
+                self.sky = self.spec['sky']
+                print("\nsky model is avaiable in the spectrum.")
             
         elif 'var' in self.spec.columns:
             self.sky = np.sqrt(self.spec['var'])
