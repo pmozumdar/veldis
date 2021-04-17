@@ -497,6 +497,7 @@ class Veldis(spec1d.Spec1d):
            values """
         vel_dis = np.zeros(len(deg)) 
         error = np.zeros(len(deg))
+        best_fit = []
         
         """Do the velocity dispersion calculation """
         for i, d in enumerate(deg):
@@ -516,6 +517,7 @@ class Veldis(spec1d.Spec1d):
 
             vel_dis[i] = pp.sol[1]
             error[i] = pp.error[1]
+            best_fit.append(pp.bestfit)
             if plot:
                 plt.figure()
 
@@ -525,6 +527,7 @@ class Veldis(spec1d.Spec1d):
         self.vel_dis = vel_dis
         self.error = error
         self.deg = deg
+        self.best_fit = best_fit
 
 #----------------------------------------------------------------------------
 
