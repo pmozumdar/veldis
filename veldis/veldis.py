@@ -143,6 +143,7 @@ class Veldis(spec1d.Spec1d):
                                     wav_range, flux, velscale=velscale)
         
         norm_weight = np.median(self.flux_rebinned)
+        self.norm_weight = norm_weight
         self.flux_rebinned = self.flux_rebinned / norm_weight
         
         """Logarithmically rebin nosie. We are using square root 
@@ -498,6 +499,8 @@ class Veldis(spec1d.Spec1d):
         vel_dis = np.zeros(len(deg)) 
         error = np.zeros(len(deg))
         best_fit = []
+        """good pixels are the pixels which have been used in the fit"""
+        good_pixels = []    
         
         """Do the velocity dispersion calculation """
         for i, d in enumerate(deg):
@@ -518,6 +521,7 @@ class Veldis(spec1d.Spec1d):
             vel_dis[i] = pp.sol[1]
             error[i] = pp.error[1]
             best_fit.append(pp.bestfit)
+            good_pixels.append(pp.goodpixels)
             if plot:
                 plt.figure()
 
@@ -528,6 +532,7 @@ class Veldis(spec1d.Spec1d):
         self.error = error
         self.deg = deg
         self.best_fit = best_fit
+        self.goodpixels = good_pixels
 
 #----------------------------------------------------------------------------
 
