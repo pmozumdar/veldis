@@ -13,7 +13,7 @@ import glob
 #import pandas as pd
 #import seaborn as sn
 
-from scipy.constants import c
+from scipy.constants import c, pi
 from ppxf.ppxf import ppxf
 from specim.specfuncs import spec1d
 #from random import sample
@@ -29,7 +29,7 @@ class Veldis(spec1d.Spec1d):
     """
     
     def __init__(self, inspec=None, informat='text', trimsec=None,
-                 wav=None, flux=None, var=None, sky=None):
+                 wav=None, flux=None, var=None, sky=None, logwav=False):
         
         """
         Initialize an object by reading the provided 1d spectra
@@ -39,7 +39,7 @@ class Veldis(spec1d.Spec1d):
         
         super().__init__(inspec=inspec, informat=informat, 
                          trimsec=trimsec,  wav=wav, flux=flux,
-                         var=var, sky=sky)
+                         var=var, sky=sky, logwav=logwav)
         
         self.wav = self['wav']
         self.flux = self['flux']
@@ -93,84 +93,71 @@ class Veldis(spec1d.Spec1d):
                 
 #-----------------------------------------------------------------------
 
-    def cal_parm(self, z=None, doplot=True, velscale=None,
-                 norm=True, high_z=False):
+    def cal_parm(self, z=None, doplot=True, logscale=True,
+                 high_z=False, noise_scale=0.05, veldis_start=200.0):
         """
         This function will calculate some required parameters for
         velocity dispersion calculation like logarithimically
         rebinned galaxy spectra (both flux and wavelength) and noise,
-        also initial guess for velocity dispersion 
-        parameters to be estimated.
-        """
+        and velocity scale. Besides initial guess for velocity 
+        dispersion fit parameters to be estimated. If the
+        spectra are already in log scale (like echelle spectra) than 
+        there is no need to log_rebin, only velocity scale is calculated
+        explicitly. However, if the spectra are in linear scale then
+        'log_rebin' function will be used to logarithmically rebin
+        the galaxy spectra which will also calculate velocity scale.
+        This velocity scale (either calculate explicity or using the
+        function) will be used to logarithmically rebinn template
+        spectra (also noise spectra if it is in linear scale). 
         
         """
-        From now on velocity scale will not be calculated explicitly 
-        in order to provide to log_rebin function as input. Instead 
-        log_rebin function will do that for galaxy spectra and return
-        a velocity scale  which will be used later to log_rebin noise
-        and template spectra. However one can still provide a velocity
-        scale which will be used to set the output number of pixels 
-        and wavelength scale during rebinning.
+        
         """
+        If the galaxy is at significant redshift, one should bring
+        the galaxy spectrum roughly to the rest-frame wavelength,
+        before calling pPXF (See Sec.2.4 of Cappellari 2017). In 
+        practice there is no need to modify the spectrum in any way,
+        given that a red shift corresponds to a linear shift of the
+        log-rebinned spectrum. One just needs to compute the wavelength
+        range in the rest-frame and adjust the instrumental resolution
+        of the galaxy observations. 
         
-        #self.v = self.velocity_scale()
-        
-        """Logarithmically rebinning the galaxy spectra (both flux
-           and wavelength)"""
-        
-        wav_range = np.array([self.wav[0], self.wav[-1]])
-        flux = self.flux  #/ np.median(self.flux)
-        
-        if high_z :
-            """
-            If the galaxy is at significant redshift, one should bring
-            the galaxy spectrum roughly to the rest-frame wavelength,
-            before calling pPXF (See Sec.2.4 of Cappellari 2017). In 
-            practice there is no need to modify the spectrum in any way,
-            given that a red shift corresponds to a linear shift of the
-            log-rebinned spectrum.One just needs to compute the wavelength
-            range in the rest-frame and adjust the instrumental resolution
-            of the galaxy observations. 
-            """
+        """
+        if z is None:
+            print("\nError : redshift is required")
             
-            wav_range = wav_range / (1+z)
-         
-        if velscale is None:
+        if high_z :
+            self.wav = self.wav/(1.0 + z)
+            self.z = z
+            
+        if logscale:
+            self.v = self.velocity_scale()
+            self.flux_rebinned = self.flux / np.median(self.flux)
+            self.wav_rebinned = np.log(self.wav)
+            noise = np.sqrt(self.var)
+            self.noise_rebinned = noise_scale*(noise/np.median(noise))
+        else:
+            wav_range = np.array([self.wav[0], self.wav[-1]])
+            flux = self.flux #/ np.median(self.flux)
             self.flux_rebinned, self.wav_rebinned, self.v = util.log_rebin(
                                                       wav_range, flux)
-        else:
-            self.flux_rebinned, self.wav_rebinned, self.v = util.log_rebin(
-                                    wav_range, flux, velscale=velscale)
-        
-        norm_weight = np.median(self.flux_rebinned)
-        self.norm_weight = norm_weight
-        self.flux_rebinned = self.flux_rebinned / norm_weight
-        
-        """Logarithmically rebin nosie. We are using square root 
-           of variance as noise. We need to normalize noise the 
-           same way we have normalized flux."""
-        
-        noise = np.sqrt(self.var)
-        
-        self.noise_rebinned = util.log_rebin(wav_range, noise,
+            self.flux_rebinned = self.flux_rebinned / np.median(self.flux_rebinned)
+            noise = np.sqrt(self.var)
+            self.noise_rebinned = util.log_rebin(wav_range, noise,
                                                       velscale=self.v)[0]
+            self.noise_rebinned = noise_scale*(self.noise_rebinned /
+                                                   np.median(self.noise_rebinned))
         
-        """temporarilly using a flag to choose whether or not
-           to normalize noise"""
-        if norm:
-            self.noise_rebinned = self.noise_rebinned / norm_weight
-        else:
-            self.noise_rebinned = self.noise_rebinned
+        """Initial guess for velocity and velocity dispersion. Using 
+           eq.(8) of Cappellari(2017). 'vel' is in km/s"""
         
-        """Initial guess for velocity and velocity dispersion"""
-        if z is None:
-            print("\nError : redshift is required to guess the "\
-                  "velocity.")
+        if high_z:
+            """z=0 as everything already redshifted to rest frame """
+            vel = c / 10**3 #* np.log(1.0 + z)
         else:
-            """Using eq.(8) of Cappellari(2017). 'vel' is in km/s"""
+            vel = (c / 10**3) * np.log(1.0 + z)
             
-            vel = (c / 10**3) * np.log(1 + z)   
-            self.start = [vel, 200.0]
+        self.start = [vel, veldis_start]
             
         """Plot logarithmically rebinned galaxy spectra and noise
            if requested"""    
@@ -193,7 +180,8 @@ class Veldis(spec1d.Spec1d):
 #-----------------------------------------------------------------------
 
     def gen_sigma_diff(self, wav_temp=None, sig_ins=None, fwhm_temp=None,
-                       doplot=True, verbose=True, high_z=False):
+                       doplot=True, verbose=True, high_z=False,
+                       wav_disp=0.4):
         """
         This function calculates and returns the differences in sigma 
         per wavelength between the two instrumental LSF's, used to 
@@ -226,12 +214,12 @@ class Veldis(spec1d.Spec1d):
         wav_range = np.array([self.wav[0], self.wav[-1]])
         
         if high_z:
-            wav_range = wav_range / (1+z)
+            wav_range = wav_range / (1+self.z)
             if sig_ins is None:
                 print("\nError : need to provide sigma of the instrument's"\
                       " LSF through the input argument 'sig_ins'.")
             else:
-                sig_ins = sig_ins / (1+z)
+                sig_ins = sig_ins / (1+self.z)
             
         """First calculate 'vsyst' in km/s which requires wavelength 
            info of a template spectra."""
@@ -252,7 +240,7 @@ class Veldis(spec1d.Spec1d):
                 fwhm_galaxy = 2.355 * sig_ins
             else:
                 fwhm_galaxy = 2.355 * sig_ins
-                fwhm_galaxy = np.full(len(self.wav), fwhm_galaxy)
+                #fwhm_galaxy = np.full(len(self.wav), fwhm_galaxy)
 
         if fwhm_temp is None:
             print("\nAs no \'fwhm_temp\' value is provided, FWHM for "\
@@ -267,28 +255,30 @@ class Veldis(spec1d.Spec1d):
         """Create an array interpolating FWHM of galaxy at the place of
            template wavelengths."""
         
-        fwhm_interp = np.interp(wav_temp, self.wav, fwhm_galaxy)
+        #fwhm_interp = np.interp(wav_temp, self.wav, fwhm_galaxy)
         
         """Calculate difference in sigma"""
         
-        fwhm_diff = np.sqrt(fwhm_interp**2 - fwhm_temp**2)
-        sigma_diff = (fwhm_diff / 2.355 ) #/ 0.8
-        
+        #fwhm_diff = np.sqrt(fwhm_interp**2 - fwhm_temp**2)
+        fwhm_diff = np.sqrt(fwhm_galaxy**2 - fwhm_temp**2)
+        sigma_diff = (fwhm_diff / 2.355 )/ wav_disp
+        print(sigma_diff)
         """Plot the sigma difference value per wavelength if requested"""
-        if doplot:
-            plt.figure()
-            plt.plot(wav_temp, sigma_diff,'.', label='sigma_diff')
-            plt.legend()
-            plt.show()
+        #if doplot:
+            #plt.figure()
+            #plt.plot(wav_temp, sigma_diff,'.', label='sigma_diff')
+            #plt.legend()
+            #plt.show()
 
-        return sigma_diff
+        return np.array(sigma_diff)
     
 #-----------------------------------------------------------------------
 
     def gen_rebinned_temp(self, lib_path=None, temp_array=None,  
                           informat='text', temp_num=None, sig_ins=None,
                           rand_temp=False, fwhm_temp=None, doplot=True, 
-                          verbose=True): 
+                          verbose=True, high_z=False, wav_disp=0.4,
+                         velscale_ratio=1.0): 
         """
         This function generates and returns an array containing 
         logarithmically rebinned template spectra.
@@ -356,7 +346,8 @@ class Veldis(spec1d.Spec1d):
                                                     verbose=False)['wav']
         
         sigma_diff = self.gen_sigma_diff(wav_temp=wav_temp, sig_ins=sig_ins,
-                                         fwhm_temp=fwhm_temp)
+                                         fwhm_temp=fwhm_temp, high_z=high_z,
+                                        wav_disp=wav_disp)
         
         wav_range = [wav_temp[0], wav_temp[-1]]
         
@@ -368,10 +359,13 @@ class Veldis(spec1d.Spec1d):
             temp_data = spec1d.Spec1d(file, informat=informat, verbose=False)
             temp_flux = temp_data['flux']
   
-            convolved_temp = util.gaussian_filter1d(temp_flux, sigma_diff)  
+            #convolved_temp = util.gaussian_filter1d(temp_flux, sigma_diff)  
 
-            temp_rebinned = util.log_rebin(wav_range, convolved_temp, 
-                                                          velscale=self.v)[0]
+            #temp_rebinned = util.log_rebin(wav_range, convolved_temp, 
+            #                                              velscale=self.v)[0]
+            temp_rebinned = util.log_rebin(wav_range, temp_flux, 
+                                               velscale=self.v/velscale_ratio)[0]
+            
             nor_temp = temp_rebinned / np.median(temp_rebinned)  
 
             temp_spec.append(nor_temp)
@@ -471,7 +465,8 @@ class Veldis(spec1d.Spec1d):
                    informat='text', temp_num=None, sig_ins=None,
                    rand_temp=False, fwhm_temp=None, doplot=True,
                    verbose=True, moments=4, plot=True, degree=None, 
-                   mask_reg=None, quiet=False, show_weight=False):
+                   mask_reg=None, quiet=False, show_weight=False,
+                   clean=False):
         """
         This function calculates velocity dispersion using 'ppxf'
         method.
@@ -509,14 +504,14 @@ class Veldis(spec1d.Spec1d):
                 pp = ppxf(self.temp_spec, self.flux_rebinned, 
                           self.noise_rebinned, self.v, self.start, 
                           moments=moments, plot=plot, vsyst=self.vsyst, 
-                          degree=d, quiet=quiet,
+                          degree=d, quiet=quiet, clean=clean,
                           lam=np.exp(self.wav_rebinned))
             else:
                 pp = ppxf(self.temp_spec, self.flux_rebinned, 
                           self.noise_rebinned, self.v, self.start, 
                           moments=moments, plot=plot, vsyst=self.vsyst, 
                           degree=d, mask=self.mask_region, quiet=quiet, 
-                          lam=np.exp(self.wav_rebinned))
+                          lam=np.exp(self.wav_rebinned), clean=clean)
 
             vel_dis[i] = pp.sol[1]
             error[i] = pp.error[1]
@@ -577,7 +572,8 @@ class Veldis(spec1d.Spec1d):
             plt.ylim(ylim[0], ylim[1])
 
 #---------------------------------------------------------------------------
-#---------------------------------------------------------------------------
+
+#----------------------------------------------------------------------------
 
 #    def velocity_scale(self, wav_gal=None, verbose=True):
 #        """
