@@ -265,8 +265,7 @@ class Veldis(spec1d.Spec1d):
     def gen_rebinned_temp(self, lib_path=None, temp_array=None,  
                           informat='text', temp_num=None, sig_ins=None,
                           rand_temp=False, fwhm_temp=None, doplot=True, 
-                          verbose=True, high_z=False, wav_disp=0.4,
-                         velscale_ratio=1.0): 
+                          verbose=True, wav_disp=0.4, velscale_ratio=1.0): 
         """
         This function generates and returns an array containing 
         logarithmically rebinned template spectra.
@@ -332,11 +331,8 @@ class Veldis(spec1d.Spec1d):
 
         wav_temp = spec1d.Spec1d(templates[0], informat=informat,
                                                     verbose=False)['wav']
-        
         sigma_diff = self.gen_sigma_diff(wav_temp=wav_temp, sig_ins=sig_ins,
-                                         fwhm_temp=fwhm_temp, high_z=high_z,
-                                        wav_disp=wav_disp)
-        
+                                      fwhm_temp=fwhm_temp, wav_disp=wav_disp)
         wav_range = [wav_temp[0], wav_temp[-1]]
         
         """Logarithmically rebin the template spectra.The array containing
@@ -347,15 +343,11 @@ class Veldis(spec1d.Spec1d):
             temp_data = spec1d.Spec1d(file, informat=informat, verbose=False)
             temp_flux = temp_data['flux']
   
-            #convolved_temp = util.gaussian_filter1d(temp_flux, sigma_diff)  
+            convolved_temp = util.gaussian_filter1d(temp_flux, sigma_diff)  
 
-            #temp_rebinned = util.log_rebin(wav_range, convolved_temp, 
-            #                                              velscale=self.v)[0]
             temp_rebinned = util.log_rebin(wav_range, temp_flux, 
-                                               velscale=self.v/velscale_ratio)[0]
-            
+                                           velscale=self.v/velscale_ratio)[0]
             nor_temp = temp_rebinned / np.median(temp_rebinned)  
-
             temp_spec.append(nor_temp)
             
         #temp_spec = np.array(temp_spec).T
