@@ -639,14 +639,14 @@ class Veldis(spec1d.Spec1d):
     def cal_sis_veldis(self, eins_radius, z_d, z_s, H0=70.0,
                       Om0=0.3, Tcmb0=2.725, Ob0=0.0486, verbose=True):
         """
-        This function calculates the velocity dispersion for a 
+        This function calculates the velocity dispersion for a
         SIS(singular isothermal sphere) profile if enistein radius, source
         and deflector redshifts are provided.
         """
         cosmo = FlatLambdaCDM(H0=H0, Om0=Om0, Tcmb0=Tcmb0, Ob0=Ob0)
         D_s = cosmo.angular_diameter_distance(z_s)
         
-        """The function angular_diameter_distance_z1z2(z1, z2)has two 
+        """The function angular_diameter_distance_z1z2(z1, z2)has two
         parameters z1 and z2 where z2 must be greater than z1 """
         
         D_ds = cosmo.angular_diameter_distance_z1z2(z_d, z_s)
