@@ -99,28 +99,28 @@ class Veldis(spec1d.Spec1d):
         This function will calculate some required parameters for
         velocity dispersion calculation like logarithimically
         rebinned galaxy spectra (both flux and wavelength) and noise,
-        and velocity scale. Besides initial guess for velocity 
+        and velocity scale. Besides initial guess for velocity
         dispersion fit parameters to be estimated. If the
-        spectra are already in log scale (like echelle spectra) than 
+        spectra are already in log scale (like echelle spectra) than
         there is no need to log_rebin, only velocity scale is calculated
         explicitly. However, if the spectra are in linear scale then
         'log_rebin' function will be used to logarithmically rebin
         the galaxy spectra which will also calculate velocity scale.
         This velocity scale (either calculate explicity or using the
         function) will be used to logarithmically rebinn template
-        spectra (also noise spectra if it is in linear scale). 
+        spectra (also noise spectra if it is in linear scale).
         
         """
         
         """
         If the galaxy is at significant redshift, one should bring
         the galaxy spectrum roughly to the rest-frame wavelength,
-        before calling pPXF (See Sec.2.4 of Cappellari 2017). In 
+        before calling pPXF (See Sec.2.4 of Cappellari 2017). In
         practice there is no need to modify the spectrum in any way,
         given that a red shift corresponds to a linear shift of the
         log-rebinned spectrum. One just needs to compute the wavelength
         range in the rest-frame and adjust the instrumental resolution
-        of the galaxy observations. 
+        of the galaxy observations.
         
         """
         if z is None:
@@ -129,6 +129,7 @@ class Veldis(spec1d.Spec1d):
         if high_z :
             self.wav = self.wav/(1.0 + z)
             self.z = z
+            self.high_z = high_z
             
         if logscale:
             self.v = self.velocity_scale()
@@ -148,7 +149,7 @@ class Veldis(spec1d.Spec1d):
             self.noise_rebinned = noise_scale*(self.noise_rebinned /
                                                    np.median(self.noise_rebinned))
         
-        """Initial guess for velocity and velocity dispersion. Using 
+        """Initial guess for velocity and velocity dispersion. Using
            eq.(8) of Cappellari(2017). 'vel' is in km/s"""
         
         if high_z:
@@ -179,17 +180,17 @@ class Veldis(spec1d.Spec1d):
     
 #-----------------------------------------------------------------------
 
-    def gen_sigma_diff(self, wav_temp=None, sig_ins=None, fwhm_temp=None,
-                       doplot=True, verbose=True, high_z=False,
+    def gen_sigma_diff(self, wav_temp=None, sig_ins=None,
+                       doplot=False, verbose=True, fwhm_temp=None,
                        wav_disp=0.4):
         """
-        This function calculates and returns the differences in sigma 
-        per wavelength between the two instrumental LSF's, used to 
-        collect galaxy spectrum and template spectra. This function 
-        also calculates a required parameter 'dv' for velocity 
-        dispersion measuremnt. The parameter 'dv' accounts for the 
-        difference of the initial wavelength in the galaxy and template 
-        spectra. 
+        This function calculates and returns the differences in sigma
+        per wavelength between the two instrumental LSF's, used to
+        collect galaxy spectrum and template spectra. This function
+        also calculates a required parameter 'dv' for velocity
+        dispersion measuremnt. The parameter 'dv' accounts for the
+        difference of the initial wavelength in the galaxy and template
+        spectra.
         
         Parameters
         ---------------
@@ -200,77 +201,64 @@ class Veldis(spec1d.Spec1d):
 
         fwhm_temp: float
             FWHM value of the template spectra.
-
+            
         wav_temp: array
            An array containing the wavelengths of the template spectra.
-
+               
+        wav_disp: float
+           average dispersion in wavelength.
+           
         Returns
         -------------
-        sigma_diff: array
+        sigma_diff: array 
             An array containing the differences in sigma per wavelength.
 
-        """
-        """wavelength range of galaxy spectra"""
-        wav_range = np.array([self.wav[0], self.wav[-1]])
-        
-        if high_z:
-            wav_range = wav_range / (1+self.z)
-            if sig_ins is None:
-                print("\nError : need to provide sigma of the instrument's"\
-                      " LSF through the input argument 'sig_ins'.")
-            else:
+        """ 
+        try:
+            if self.high_z:
                 sig_ins = sig_ins / (1+self.z)
-            
-        """First calculate 'vsyst' in km/s which requires wavelength 
-           info of a template spectra."""
-        
-        self.vsyst = (c / 10**3) * np.log(wav_temp[0] / wav_range[0])
-        
-        if verbose:
-            print('vsyst = %f ' %self.vsyst)
-        
-        """Create an array of FWHM per wavelength for the galaxy of 
-           interest."""
-        
-        if sig_ins is None:
+            fwhm_galaxy = 2.355 * sig_ins
+        except:
             print("\nError : need to provide sigma of the instrument's"\
                   " LSF through the input argument 'sig_ins'.")
-        else:
-            if isinstance(sig_ins, np.ndarray):
-                fwhm_galaxy = 2.355 * sig_ins
-            else:
-                fwhm_galaxy = 2.355 * sig_ins
-                #fwhm_galaxy = np.full(len(self.wav), fwhm_galaxy)
-
+            
         if fwhm_temp is None:
             print("\nAs no \'fwhm_temp\' value is provided, FWHM for "\
                   "the Indo-US template library will be used as "\
                   "default value")
-            
-            """ FWHMfor indo-us template library """
-            fwhm_temp = 1.35                            
+            fwhm_temp = 1.35    # FWHM for indo-us template library                        
         else:
             fwhm_temp = fwhm_temp
-
-        """Create an array interpolating FWHM of galaxy at the place of
-           template wavelengths."""
         
-        #fwhm_interp = np.interp(wav_temp, self.wav, fwhm_galaxy)
+        """Create an array interpolating FWHM of galaxy at the place of
+           template wavelengths if FWHM galaxy varies with wavelength."""
+        
+        if isinstance(fwhm_galaxy, np.ndarray):
+            fwhm_interp = np.interp(wav_temp, self.wav, fwhm_galaxy)
+            fwhm_diff = np.sqrt(fwhm_interp**2 - fwhm_temp**2)
+        else:
+            fwhm_diff = np.sqrt(fwhm_galaxy**2 - fwhm_temp**2)
         
         """Calculate difference in sigma"""
         
-        #fwhm_diff = np.sqrt(fwhm_interp**2 - fwhm_temp**2)
-        fwhm_diff = np.sqrt(fwhm_galaxy**2 - fwhm_temp**2)
         sigma_diff = (fwhm_diff / 2.355 )/ wav_disp
-        print(sigma_diff)
+        
+        """Calculating 'vsyst' in km/s which requires wavelength 
+           info of a template spectra."""
+        
+        self.vsyst = (c / 10**3) * np.log(wav_temp[0] / self.wav[0])       
+        if verbose:
+            print('vsyst = %f ' %self.vsyst)
+            print("\nsigma_diff : %f" %sigma_diff)
+        
         """Plot the sigma difference value per wavelength if requested"""
-        #if doplot:
-            #plt.figure()
-            #plt.plot(wav_temp, sigma_diff,'.', label='sigma_diff')
-            #plt.legend()
-            #plt.show()
+        if doplot:
+            plt.figure()
+            plt.plot(wav_temp, sigma_diff,'.', label='sigma_diff')
+            plt.legend()
+            plt.show()
 
-        return np.array(sigma_diff)
+        return sigma_diff
     
 #-----------------------------------------------------------------------
 
