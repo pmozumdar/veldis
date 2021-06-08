@@ -576,6 +576,62 @@ class Veldis(spec1d.Spec1d):
 
 #---------------------------------------------------------------------------
 
+     def plot_fit(self, order=10, boxsize=7, alpha=0.5, fig=None,
+                 color='y'):
+        
+        """
+        This function plot the best fit curve for velocity dispersion
+        calculated by 'ppxf' slightly differently than 'ppxf'. However
+        most of the code is borrowed from 'ppxf'.
+        
+        Parameters
+        -----------
+        order: int
+            The order for which the fit to plot.
+        boxsize: odd integer
+            The box size using which the spetrum would be smoothed using
+            boxcar method.
+        """
+        x = np.exp(self.wav_rebinned)
+        ll, rr = np.min(x), np.max(x)
+        gal_rebinn = spec1d.Spec1d(wav=x, flux=self.flux_rebinned, 
+                                   verbose=False)
+        gal_smooth, varsmooth = gal_rebinn.smooth_boxcar(boxsize, 
+                                                        verbose=False)
+        if order in self.deg:
+            ord_list = self.deg
+            ord_index = ord_list.tolist().index(order)
+        else:
+            print('\n no fit data for the given order')
+            
+        bestfit = self.best_fit[ord_index]
+        goodpixels = self.goodpixels[ord_index]
+        resid = self.flux_rebinned - bestfit
+        mn = np.min(bestfit[goodpixels])
+        mn -= np.percentile(np.abs(resid[goodpixels]), 99)
+        mx = np.max(bestfit[goodpixels])
+        resid += mn   # Offset residuals to avoid overlap
+        mn1 = np.min(resid[goodpixels])
+        
+        plt.xlabel(r"Wavelength (Ang)")
+        plt.ylabel("Relative Flux")
+        plt.xlim([ll, rr] + np.array([-0.02, 0.02])*(rr - ll))
+        plt.ylim([mn1, mx] + np.array([-0.05, 0.05])*(mx - mn1))
+        plt.plot(x, self.flux_rebinned, 'k', alpha=alpha)
+        plt.plot(x, gal_smooth, color=color, linewidth=2)
+        plt.plot(x[goodpixels], resid[goodpixels], 'd',
+                 color='LimeGreen', mec='LimeGreen', ms=4)
+        plt.plot(x, bestfit, 'r', linewidth=2)
+        plt.plot(x[goodpixels], goodpixels*0 + mn, '.k', ms=1)
+        
+        w = np.flatnonzero(np.diff(goodpixels) > 1)
+        for wj in w:
+            a, b = goodpixels[wj : wj + 2]
+            plt.axvspan(x[a], x[b], facecolor='lightgray')
+            plt.plot(x[a : b + 1], resid[a : b + 1], 'b')
+        for k in goodpixels[[0, -1]]:
+            plt.plot(x[[k, k]], [mn, bestfit[k]], 'lightgray')
+                    
 #----------------------------------------------------------------------------
 
 #    def velocity_scale(self, wav_gal=None, verbose=True):
