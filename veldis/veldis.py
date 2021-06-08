@@ -92,6 +92,25 @@ class Veldis(spec1d.Spec1d):
                 self.trim_spec.plot()
                 
 #-----------------------------------------------------------------------
+    
+    def velocity_scale(self):
+        '''
+        This function calculates and returns the associated velocity scale of the
+        galaxy.
+
+        Returns
+        -------------
+        vel_scale: float
+            Velocity scale of the galaxy.
+        '''  
+        frac_lamda = self.wav[1] / self.wav[0]   # Constant lambda fraction per pixel
+        vel_scale =  np.log(frac_lamda)*(c / 10**3)  # velocity scale in km/s per pixel
+        #vel_scale = (c / 10**3)*(np.mean(np.diff(self.wav))/ np.mean(self.wav))
+        print('Velocity scale = %f km/s' %vel_scale)
+
+        return vel_scale
+                
+#-----------------------------------------------------------------------
 
     def cal_parm(self, z=None, doplot=True, logscale=True,
                  high_z=False, noise_scale=0.05, veldis_start=200.0):
@@ -398,7 +417,7 @@ class Veldis(spec1d.Spec1d):
 #-----------------------------------------------------------------------
 
     def check_temp_coverage(self, intemp=None, informat='text',
-                            z=None):
+                            z=None, high_z=False):
         """
         This function will check the range of wavelength the template
         spectra will cover given a particular redshift.
@@ -412,11 +431,15 @@ class Veldis(spec1d.Spec1d):
                                                   verbose=False)['wav']
         
         if z is None:
-            print("\n Error : need to provide redshfit")
-                  
+            print("\n Error : need to provide redshfit")          
         else:
-            wav_min = wav_temp[0] * (1+z)
-            wav_max = wav_temp[-1] * (1+z)
+            """ If the spectrum is rest framed than z=0"""
+            if high_z:
+                wav_min = wav_temp[0] 
+                wav_max = wav_temp[-1]
+            else:
+                wav_min = wav_temp[0] * (1+z)
+                wav_max = wav_temp[-1] * (1+z)
 
             print("\nCovered range for redshift %f : "\
                   "%f - %f" %(z, wav_min, wav_max))
