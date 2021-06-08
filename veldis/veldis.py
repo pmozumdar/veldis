@@ -17,6 +17,7 @@ from scipy.constants import c, pi
 from ppxf.ppxf import ppxf
 from specim.specfuncs import spec1d
 from .gaussian_fit import Gaussfit
+from astropy.cosmology import FlatLambdaCDM
 #from random import sample
 #from collections import Counter
 #from keckcode.deimos import deimosmask1d
@@ -634,7 +635,29 @@ class Veldis(spec1d.Spec1d):
             plt.plot(x[[k, k]], [mn, bestfit[k]], 'lightgray')
                     
 #----------------------------------------------------------------------------
-
+    
+    def cal_sis_veldis(self, eins_radius, z_d, z_s, H0=70.0,
+                      Om0=0.3, Tcmb0=2.725, Ob0=0.0486, verbose=True):
+        """
+        This function calculates the velocity dispersion for a 
+        SIS(singular isothermal sphere) profile if enistein radius, source
+        and deflector redshifts are provided.
+        """
+        cosmo = FlatLambdaCDM(H0=H0, Om0=Om0, Tcmb0=Tcmb0, Ob0=Ob0)
+        D_s = cosmo.angular_diameter_distance(z_s)
+        
+        """The function angular_diameter_distance_z1z2(z1, z2)has two 
+        parameters z1 and z2 where z2 must be greater than z1 """
+        
+        D_ds = cosmo.angular_diameter_distance_z1z2(z_d, z_s)
+        eins_radius = eins_radius * 4.848*10**-6 # converting to radians
+        sis_veldis = np.sqrt((eins_radius*(c/10**3)**2*(D_s/D_ds))/ (4*pi))
+        
+        if verbose:
+            print("\nvelocity dispersion assuming SIS mass profile"\
+                  " is %f" %sis_veldis)
+            
+        return sis_veldis
 #---------------------------------------------------------------------------
 
     def closest_wavelength(self, wavrange, verbose=True):
