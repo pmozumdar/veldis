@@ -16,6 +16,7 @@ import glob
 from scipy.constants import c, pi
 from ppxf.ppxf import ppxf
 from specim.specfuncs import spec1d
+from .gaussian_fit import Gaussfit
 #from random import sample
 #from collections import Counter
 #from keckcode.deimos import deimosmask1d
@@ -576,14 +577,14 @@ class Veldis(spec1d.Spec1d):
 
 #---------------------------------------------------------------------------
 
-     def plot_fit(self, order=10, boxsize=7, alpha=0.5, fig=None,
+    def plot_fit(self, order=10, boxsize=7, alpha=0.5, fig=None,
                  color='y'):
-        
+
         """
         This function plot the best fit curve for velocity dispersion
         calculated by 'ppxf' slightly differently than 'ppxf'. However
         most of the code is borrowed from 'ppxf'.
-        
+
         Parameters
         -----------
         order: int
@@ -603,7 +604,7 @@ class Veldis(spec1d.Spec1d):
             ord_index = ord_list.tolist().index(order)
         else:
             print('\n no fit data for the given order')
-            
+
         bestfit = self.best_fit[ord_index]
         goodpixels = self.goodpixels[ord_index]
         resid = self.flux_rebinned - bestfit
@@ -612,7 +613,7 @@ class Veldis(spec1d.Spec1d):
         mx = np.max(bestfit[goodpixels])
         resid += mn   # Offset residuals to avoid overlap
         mn1 = np.min(resid[goodpixels])
-        
+
         plt.xlabel(r"Wavelength (Ang)")
         plt.ylabel("Relative Flux")
         plt.xlim([ll, rr] + np.array([-0.02, 0.02])*(rr - ll))
@@ -623,7 +624,7 @@ class Veldis(spec1d.Spec1d):
                  color='LimeGreen', mec='LimeGreen', ms=4)
         plt.plot(x, bestfit, 'r', linewidth=2)
         plt.plot(x[goodpixels], goodpixels*0 + mn, '.k', ms=1)
-        
+
         w = np.flatnonzero(np.diff(goodpixels) > 1)
         for wj in w:
             a, b = goodpixels[wj : wj + 2]
@@ -634,33 +635,16 @@ class Veldis(spec1d.Spec1d):
                     
 #----------------------------------------------------------------------------
 
-#    def velocity_scale(self, wav_gal=None, verbose=True):
-#        """
-#        This function calculates and returns the associated velocity scale 
-#        of the galaxy of interest.
-#
-#        Parameters
-#        ---------------
-#        wav_gal: array (optional)
-#            An array containing the wavelengths of the galaxy spectra. 
-#
-#        Returns
-#        -------------
-#        vel_scale: float
-#            Velocity scale of the galaxy.
-#        """
-#        
-#        """ Constant wav fraction per pixel """
-#        if wav_gal is None:
-#            frac_wav = self.wav[1] / self.wav[0]   
-#        else:
-#            frac_wav = wav_gal[1] / wav_gal[0] 
-#
-#        """velocity scale in km/s per pixel """
-#        vel_scale =  np.log(frac_wav) * (c / 10**3)
-#
-#        if verbose:
-#            print('Velocity scale = %f km/s' %vel_scale)
-#
-#        return vel_scale
+#---------------------------------------------------------------------------
 
+    def closest_wavelength(self, wavrange, verbose=True):
+        """
+        This function calls the closet_wavrange function from 
+        Gaussfit class which extracts the closest wavelength range values 
+        from the wavelength vector to a given crude wavelength range.
+        """
+        
+        clst_wav_range, wav_index = Gaussfit.closest_wavrange(self, wavrange=
+                                             wavrange, verbose=verbose)
+        return clst_wav_range, wav_index
+#-------------------------------------------------------------------------------
