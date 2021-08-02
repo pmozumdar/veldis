@@ -52,6 +52,10 @@ class Veldis(spec1d.Spec1d):
             print("\n Error: velocity dispersion cann't be "\
                   "calculated without 'var' data.")
             
+        """ Setup some other initial parameters"""
+        
+        self.high_z = False
+        
 #-----------------------------------------------------------------------
   
     def trimspec(self, wavrange=None, doplot=True):
@@ -146,11 +150,18 @@ class Veldis(spec1d.Spec1d):
         """
         if z is None:
             print("\nError : redshift is required")
-            
-        if high_z :
-            self.wav = self.wav/(1.0 + z)
-            self.z = z
-            self.high_z = high_z
+        
+        """The following condition ensures that the wavelength is red
+           shifted only once."""
+        if high_z: 
+            if not self.high_z:
+                self.wav = self.wav/(1.0 + z)
+                self.z = z
+                self.high_z = high_z
+                print("\nThe wavelength is red shifted.")
+            else:
+                print("\nThe wavelength is already red shifted once."\
+                      " Watch out!!!")
             
         if logscale:
             self.v = self.velocity_scale()
@@ -227,7 +238,7 @@ class Veldis(spec1d.Spec1d):
            An array containing the wavelengths of the template spectra.
                
         wav_disp: float
-           average dispersion in wavelength.
+           average dispersion in wavelength of template spectra.
            
         Returns
         -------------
@@ -238,7 +249,10 @@ class Veldis(spec1d.Spec1d):
         try:
             if self.high_z:
                 sig_ins = sig_ins / (1+self.z)
-            fwhm_galaxy = 2.355 * sig_ins
+                fwhm_galaxy = 2.355 * sig_ins
+                print("\n'sig_ins' is red shifted.")
+            else:
+                fwhm_galaxy = 2.355 * sig_ins
         except:
             print("\nError : need to provide sigma of the instrument's"\
                   " LSF through the input argument 'sig_ins'.")
@@ -360,15 +374,12 @@ class Veldis(spec1d.Spec1d):
            this data should have a shape of [nPixels, nTemplates]"""
         
         for i, file in enumerate(templates):
-
             temp_data = spec1d.Spec1d(file, informat=informat, verbose=False)
             temp_flux = temp_data['flux']
-  
-            convolved_temp = util.gaussian_filter1d(temp_flux, sigma_diff)  
-
-            temp_rebinned = util.log_rebin(wav_range, temp_flux, 
+            convolved_temp = util.gaussian_filter1d(temp_flux, sigma_diff)
+            temp_rebinned = util.log_rebin(wav_range, temp_flux,
                                            velscale=self.v/velscale_ratio)[0]
-            nor_temp = temp_rebinned / np.median(temp_rebinned)  
+            nor_temp = temp_rebinned / np.median(temp_rebinned)
             temp_spec.append(nor_temp)
             
         #temp_spec = np.array(temp_spec).T
@@ -640,8 +651,8 @@ class Veldis(spec1d.Spec1d):
                       Om0=0.3, Tcmb0=2.725, Ob0=0.0486, verbose=True):
         """
         This function calculates the velocity dispersion for a
-        SIS(singular isothermal sphere) profile if enistein radius, source
-        and deflector redshifts are provided.
+        SIS(singular isothermal sphere) profile if enistein radius(in arc second),
+        source and deflector redshifts are provided.
         """
         cosmo = FlatLambdaCDM(H0=H0, Om0=Om0, Tcmb0=Tcmb0, Ob0=Ob0)
         D_s = cosmo.angular_diameter_distance(z_s)
