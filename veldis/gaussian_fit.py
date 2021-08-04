@@ -21,7 +21,8 @@ class Gaussfit(object):
     """
     
     def __init__(self, inspec=None, informat='text', trimsec=None,
-                 wav=None, flux=None, var=None, sky=None):
+                 wav=None, flux=None, var=None, sky=None, 
+                 logwav=False):
         
         """
         Initialize an object by reading the provided 1d spectra
@@ -30,7 +31,7 @@ class Gaussfit(object):
         """
         self.spec = spec1d.Spec1d(inspec=inspec, informat=informat, 
                                   trimsec=trimsec, wav=wav, flux=flux,
-                                  var=var, sky=sky)
+                                  var=var, sky=sky, logwav=logwav)
          
         self.wav = self.spec['wav']
         self.flux = self.spec['flux']
