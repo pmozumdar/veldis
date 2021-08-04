@@ -180,6 +180,7 @@ class Veldis(spec1d.Spec1d):
                                                       velscale=self.v)[0]
             self.noise_rebinned = noise_scale*(self.noise_rebinned /
                                                    np.median(self.noise_rebinned))
+            print('Velocity scale = %f km/s' %self.v)
         
         """Initial guess for velocity and velocity dispersion. Using
            eq.(8) of Cappellari(2017). 'vel' is in km/s"""
