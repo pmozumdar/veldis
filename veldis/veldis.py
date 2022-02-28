@@ -18,6 +18,7 @@ from ppxf.ppxf import ppxf
 from specim.specfuncs import spec1d
 from .gaussian_fit import Gaussfit
 from astropy.cosmology import FlatLambdaCDM
+
 #from random import sample
 #from collections import Counter
 #from keckcode.deimos import deimosmask1d
@@ -112,9 +113,16 @@ class Veldis(spec1d.Spec1d):
         frac_lamda = self.wav[1] / self.wav[0]   # Constant lambda fraction per pixel
         vel_scale =  np.log(frac_lamda)*(c / 10**3)  # velocity scale in km/s per pixel
         #vel_scale = (c / 10**3)*(np.mean(np.diff(self.wav))/ np.mean(self.wav))
-        print('Velocity scale = %f km/s' %vel_scale)
+        print('Externally calculated velocity scale = %f km/s' %vel_scale)
+        
+        wav_range = np.array([self.wav[0], self.wav[-1]])
+        flux = self.flux #/ np.median(self.flux)
+        flux_rebinned, wav_rebinned, v = util.log_rebin(wav_range, flux)
+        
+        print('velocity scale from ppxf = %f km/s' %v)
+        
 
-        return vel_scale
+        return v #vel_scale
                 
 #-----------------------------------------------------------------------
 
@@ -187,7 +195,7 @@ class Veldis(spec1d.Spec1d):
         
         if high_z:
             """z=0 as everything already redshifted to rest frame """
-            vel = c / 10**3 #* np.log(1.0 + z)
+            vel = 0.0 #c / 10**3 #* np.log(1.0 + z)
         else:
             vel = (c / 10**3) * np.log(1.0 + z)
             
@@ -271,9 +279,9 @@ class Veldis(spec1d.Spec1d):
         
         if isinstance(fwhm_galaxy, np.ndarray):
             fwhm_interp = np.interp(wav_temp, self.wav, fwhm_galaxy)
-            fwhm_diff = np.sqrt(fwhm_interp**2 - fwhm_temp**2)
+            fwhm_diff = np.sqrt((fwhm_interp**2 - fwhm_temp**2).clip(0))
         else:
-            fwhm_diff = np.sqrt(fwhm_galaxy**2 - fwhm_temp**2)
+            fwhm_diff = np.sqrt(max(0,(fwhm_galaxy**2 - fwhm_temp**2)))
         
         """Calculate difference in sigma"""
         
@@ -301,7 +309,8 @@ class Veldis(spec1d.Spec1d):
     def gen_rebinned_temp(self, lib_path=None, temp_array=None,  
                           informat='text', temp_num=None, sig_ins=None,
                           rand_temp=False, fwhm_temp=None, doplot=True, 
-                          verbose=True, wav_disp=0.4, velscale_ratio=1.0): 
+                          verbose=True, wav_disp=0.4, velscale_ratio=1.0,
+                          sigma_diff=None): 
         """
         This function generates and returns an array containing 
         logarithmically rebinned template spectra.
@@ -361,15 +370,25 @@ class Veldis(spec1d.Spec1d):
                 templates =  glob.glob(lib_path)
             else:
                 templates = glob.glob(lib_path)[:temp_num]
+        
+        self.templates = templates
 
         """Collect the sigma difference data to convolve the template 
            spectra """
 
         wav_temp = spec1d.Spec1d(templates[0], informat=informat,
                                                     verbose=False)['wav']
-        sigma_diff = self.gen_sigma_diff(wav_temp=wav_temp, sig_ins=sig_ins,
-                                      fwhm_temp=fwhm_temp, wav_disp=wav_disp)
-        wav_range = [wav_temp[0], wav_temp[-1]]
+        if sigma_diff is None:
+            sigma_diff = self.gen_sigma_diff(wav_temp=wav_temp,
+                              sig_ins=sig_ins, fwhm_temp=fwhm_temp,
+                              wav_disp=wav_disp)
+        else:
+            self.vsyst = (c / 10**3) * np.log(wav_temp[0] / self.wav[0])       
+            if verbose:
+                print('vsyst = %f ' %self.vsyst)
+                print("\nsigma_diff : %f" %sigma_diff)
+                
+        wav_range = [wav_temp[0], wav_temp[-1]] 
         
         """Logarithmically rebin the template spectra.The array containing
            this data should have a shape of [nPixels, nTemplates]"""
@@ -377,9 +396,16 @@ class Veldis(spec1d.Spec1d):
         for i, file in enumerate(templates):
             temp_data = spec1d.Spec1d(file, informat=informat, verbose=False)
             temp_flux = temp_data['flux']
+            #if sigma_diff > 0.0:
             convolved_temp = util.gaussian_filter1d(temp_flux, sigma_diff)
-            temp_rebinned = util.log_rebin(wav_range, temp_flux,
-                                           velscale=self.v/velscale_ratio)[0]
+            #else:
+            #    convolved_temp = temp_flux
+            ## It seems I haven't actually used the smoothed templates
+            ## in calculation
+            #temp_rebinned = util.log_rebin(wav_range, temp_flux,
+            #                               velscale=self.v/velscale_ratio)[0]
+            temp_rebinned = util.log_rebin(wav_range, convolved_temp,
+                                          velscale=self.v/velscale_ratio)[0]
             nor_temp = temp_rebinned / np.median(temp_rebinned)
             temp_spec.append(nor_temp)
             
@@ -460,21 +486,32 @@ class Veldis(spec1d.Spec1d):
                   
 #-----------------------------------------------------------------------
 
-    def cal_redshift(self, **kwargs):
+    def cal_redshift(self, z_std=True, **kwargs):
         """
         This function will calculate redshift comparing given observed
         wavelength with actual emitted wavelength. Currently compares
-        CaII K+H, G-band, MgI b and NaI D.
+        CN, CaII K+H, H-delta, G-band, H-beta, MgI b and NaI D. NaI D
+        is the average of the wavelength pair as generally they are not
+        visibly separate.
         """
               
-        wav_dict = {'CaK' : 3933.67, 'CaH' : 3968.47, 'G' : 4305.0,
-                    'Mgb' : 5176, 'NaD' : 5895.92}
+        wav_dict = {'CN': 3883, 'CaK': 3933.67, 'CaH': 3968.47,
+                    'Hdelta': 4101, 'G': 4305.0, 'Hbeta': 4861,
+                    'Mgb' : 5176, 'NaD' : 5892.94}
+        cal_z = []
         
         for key, val in kwargs.items():
             if key in wav_dict.keys():   
                 z = (val / wav_dict[key]) - 1.0
                 print("\n Observed wavelength for %s : %f" %(key, val))
                 print("\nredshift z : %f" %z)
+                cal_z.append(z)
+                
+        if z_std:
+            print('sample standard deviation of the redshifts : %.4f'
+                                    %np.std(cal_z, ddof=1))
+            print('population standard deviation of the redshifts : %.4f'
+                                    %np.std(cal_z))
 
 #-----------------------------------------------------------------------
 
@@ -511,6 +548,8 @@ class Veldis(spec1d.Spec1d):
         vel_dis = np.zeros(len(deg)) 
         error = np.zeros(len(deg))
         best_fit = []
+        temp_weight = []
+        mean_vel = np.zeros(len(deg))
         """good pixels are the pixels which have been used in the fit"""
         good_pixels = []    
         
@@ -529,22 +568,26 @@ class Veldis(spec1d.Spec1d):
                           moments=moments, plot=plot, vsyst=self.vsyst, 
                           degree=d, mask=self.mask_region, quiet=quiet, 
                           lam=np.exp(self.wav_rebinned), clean=clean)
-
+           
+            mean_vel[i] = pp.sol[0]
             vel_dis[i] = pp.sol[1]
             error[i] = pp.error[1]
             best_fit.append(pp.bestfit)
             good_pixels.append(pp.goodpixels)
+            temp_weight.append(pp.weights)
             if plot:
                 plt.figure()
 
             if show_weight:
                 [print('%d, %f'%(i,w)) for i,w in enumerate(pp.weights)\
-                                                               if w>10]
+                                                              if w>10]
+        self.mean_vel = mean_vel
         self.vel_dis = vel_dis
         self.error = error
         self.deg = deg
         self.best_fit = best_fit
         self.goodpixels = good_pixels
+        self.temp_weight = temp_weight
 
 #----------------------------------------------------------------------------
 
