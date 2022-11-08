@@ -520,7 +520,7 @@ class Veldis(spec1d.Spec1d):
                    rand_temp=False, fwhm_temp=None, doplot=True,
                    verbose=True, moments=4, plot=True, degree=None, 
                    mask_reg=None, quiet=False, show_weight=False,
-                   clean=False, mdegree=0):
+                   clean=False, mdegree=0, sky=sky):
         """
         This function calculates velocity dispersion using 'ppxf'
         method.
@@ -560,7 +560,7 @@ class Veldis(spec1d.Spec1d):
                 pp = ppxf(self.temp_spec, self.flux_rebinned, 
                           self.noise_rebinned, self.v, self.start, 
                           moments=moments, plot=plot, vsyst=self.vsyst, 
-                          degree=d, quiet=quiet, clean=clean,
+                          degree=d, quiet=quiet, clean=clean, sky=sky,
                           lam=np.exp(self.wav_rebinned), mdegree=mdegree)
             else:
                 pp = ppxf(self.temp_spec, self.flux_rebinned, 
@@ -568,7 +568,7 @@ class Veldis(spec1d.Spec1d):
                           moments=moments, plot=plot, vsyst=self.vsyst, 
                           degree=d, mask=self.mask_region, quiet=quiet, 
                           lam=np.exp(self.wav_rebinned), clean=clean,
-                          mdegree=mdegree)
+                          mdegree=mdegree, sky=sky)
            
             mean_vel[i] = pp.sol[0]
             vel_dis[i] = pp.sol[1]
