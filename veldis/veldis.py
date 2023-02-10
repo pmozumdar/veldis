@@ -520,7 +520,7 @@ class Veldis(spec1d.Spec1d):
                    rand_temp=False, fwhm_temp=None, doplot=True,
                    verbose=True, moments=4, plot=True, degree=None, 
                    mask_reg=None, quiet=False, show_weight=False,
-                   clean=False, mdegree=0, sky=sky):
+                   clean=False, mdegree=0, sky=None):
         """
         This function calculates velocity dispersion using 'ppxf'
         method.
