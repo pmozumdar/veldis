@@ -378,6 +378,8 @@ class Veldis(spec1d.Spec1d):
 
         wav_temp = spec1d.Spec1d(templates[0], informat=informat,
                                                     verbose=False)['wav']
+        wav_range = [wav_temp[0], wav_temp[-1]] 
+        
         if sigma_diff is None:
             sigma_diff = self.gen_sigma_diff(wav_temp=wav_temp,
                               sig_ins=sig_ins, fwhm_temp=fwhm_temp,
@@ -388,8 +390,7 @@ class Veldis(spec1d.Spec1d):
                 print('vsyst = %f ' %self.vsyst)
                 print("\nsigma_diff : %f" %sigma_diff)
                 
-        wav_range = [wav_temp[0], wav_temp[-1]] 
-        
+                
         """Logarithmically rebin the template spectra.The array containing
            this data should have a shape of [nPixels, nTemplates]"""
         
@@ -409,6 +410,8 @@ class Veldis(spec1d.Spec1d):
             nor_temp = temp_rebinned / np.median(temp_rebinned)
             temp_spec.append(nor_temp)
             
+        temp_rebinned, self.temp_wav_rebinned, vtemp = util.log_rebin(wav_range, convolved_temp,
+                                                                velscale=self.v/velscale_ratio)
         #temp_spec = np.array(temp_spec).T
         temp_spec = np.swapaxes(np.array(temp_spec), 0, 1)
 
@@ -556,19 +559,21 @@ class Veldis(spec1d.Spec1d):
         """Do the velocity dispersion calculation """
         for i, d in enumerate(deg):
             print('\ndegree : %d' %d)
+            ### Providing vsyst is redundant if both lam amd lam_temp are given
             if mask_reg is None:
                 pp = ppxf(self.temp_spec, self.flux_rebinned, 
                           self.noise_rebinned, self.v, self.start, 
-                          moments=moments, plot=plot, vsyst=self.vsyst, 
+                          moments=moments, plot=plot,  
                           degree=d, quiet=quiet, clean=clean,
-                          lam=np.exp(self.wav_rebinned), mdegree=mdegree)
+                          lam=np.exp(self.wav_rebinned), mdegree=mdegree,
+                         lam_temp=np.exp(self.temp_wav_rebinned))#vsyst=self.vsyst,
             else:
                 pp = ppxf(self.temp_spec, self.flux_rebinned, 
                           self.noise_rebinned, self.v, self.start, 
-                          moments=moments, plot=plot, vsyst=self.vsyst, 
+                          moments=moments, plot=plot,  
                           degree=d, mask=self.mask_region, quiet=quiet, 
                           lam=np.exp(self.wav_rebinned), clean=clean,
-                          mdegree=mdegree)
+                          mdegree=mdegree, lam_temp=np.exp(self.temp_wav_rebinned))#vsyst=self.vsyst,
            
             mean_vel[i] = pp.sol[0]
             vel_dis[i] = pp.sol[1]
