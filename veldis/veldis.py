@@ -111,7 +111,8 @@ class Veldis(spec1d.Spec1d):
             Velocity scale of the galaxy.
         '''  
         frac_lamda = self.wav[1] / self.wav[0]   # Constant lambda fraction per pixel
-        vel_scale =  np.log(frac_lamda)*(c / 10**3)  # velocity scale in km/s per pixel
+        #vel_scale =  np.log(frac_lamda)*(c / 10**3)  # velocity scale in km/s per pixel
+        vel_scale = np.diff(np.log(self.wav[[0, -1]]))/(self.wav.size - 1)*(c / 10**3)
         #vel_scale = (c / 10**3)*(np.mean(np.diff(self.wav))/ np.mean(self.wav))
         print('Externally calculated velocity scale = %f km/s' %vel_scale)
         
@@ -122,7 +123,7 @@ class Veldis(spec1d.Spec1d):
         print('velocity scale from ppxf = %f km/s' %v)
         
 
-        return v #vel_scale
+        return vel_scale[0]
                 
 #-----------------------------------------------------------------------
 
@@ -277,24 +278,34 @@ class Veldis(spec1d.Spec1d):
         """Create an array interpolating FWHM of galaxy at the place of
            template wavelengths if FWHM galaxy varies with wavelength."""
         
+        
         if isinstance(fwhm_galaxy, np.ndarray):
             fwhm_interp = np.interp(wav_temp, self.wav, fwhm_galaxy)
             fwhm_diff = np.sqrt((fwhm_interp**2 - fwhm_temp**2).clip(0))
         else:
-            fwhm_diff = np.sqrt(max(0,(fwhm_galaxy**2 - fwhm_temp**2)))
+            if isinstance(fwhm_temp, np.ndarray):
+                fwhm_diff = np.sqrt((fwhm_galaxy**2 - fwhm_temp**2).clip(0))
+            else:
+                fwhm_diff = np.sqrt(max(0, fwhm_galaxy**2 - fwhm_temp**2))
+            
+        if np.any(fwhm_diff == 0):
+            print("WARNING: the template's resolution dlam is larger than the galaxy's")
         
         """Calculate difference in sigma"""
-        
-        sigma_diff = (fwhm_diff / 2.355 )/ wav_disp
-        
+        ### sigma_diff should be in unit of Angstrom
+        sigma_diff = (fwhm_diff / 2.355 ) #/ wav_disp
+        self.sigma_diff = sigma_diff
         """Calculating 'vsyst' in km/s which requires wavelength 
            info of a template spectra."""
         
         self.vsyst = (c / 10**3) * np.log(wav_temp[0] / self.wav[0])       
         if verbose:
             print('vsyst = %f ' %self.vsyst)
-            print("\nsigma_diff : %f" %sigma_diff)
-        
+            if isinstance(sigma_diff, np.ndarray):
+                print("\nmedian of sigma_diff : %f" %np.median(sigma_diff))
+            else:
+                print("\nsigma_diff : %f" %sigma_diff)
+            
         """Plot the sigma difference value per wavelength if requested"""
         if doplot:
             plt.figure()
@@ -310,7 +321,8 @@ class Veldis(spec1d.Spec1d):
                           informat='text', temp_num=None, sig_ins=None,
                           rand_temp=False, fwhm_temp=None, doplot=True, 
                           verbose=True, wav_disp=0.4, velscale_ratio=1.0,
-                          sigma_diff=None): 
+                          sigma_diff=None, all_temp_file=None, wav_temp=None,
+                         wav_dispersion='constant', all_temp_flux_array=None): 
         """
         This function generates and returns an array containing 
         logarithmically rebinned template spectra.
@@ -375,47 +387,84 @@ class Veldis(spec1d.Spec1d):
 
         """Collect the sigma difference data to convolve the template 
            spectra """
-
-        wav_temp = spec1d.Spec1d(templates[0], informat=informat,
+        if wav_temp is None:
+            wav_temp = spec1d.Spec1d(templates[0], informat=informat,
                                                     verbose=False)['wav']
+        
         wav_range = [wav_temp[0], wav_temp[-1]] 
         
         if sigma_diff is None:
             sigma_diff = self.gen_sigma_diff(wav_temp=wav_temp,
                               sig_ins=sig_ins, fwhm_temp=fwhm_temp,
-                              wav_disp=wav_disp)
+                              wav_disp=wav_disp, verbose=verbose)
         else:
             self.vsyst = (c / 10**3) * np.log(wav_temp[0] / self.wav[0])       
             if verbose:
                 print('vsyst = %f ' %self.vsyst)
-                print("\nsigma_diff : %f" %sigma_diff)
+                if isinstance(sigma_diff, np.ndarray):
+                    print("\nmedian of sigma_diff : %f" %np.median(sigma_diff))
+                else:
+                    print("\nsigma_diff : %f" %sigma_diff)
                 
                 
         """Logarithmically rebin the template spectra.The array containing
            this data should have a shape of [nPixels, nTemplates]"""
-        
-        for i, file in enumerate(templates):
-            temp_data = spec1d.Spec1d(file, informat=informat, verbose=False)
-            temp_flux = temp_data['flux']
-            if sigma_diff > 0.0:
-                convolved_temp = util.gaussian_filter1d(temp_flux, sigma_diff)
-            else:
-                convolved_temp = temp_flux
-            ## It seems I haven't actually used the smoothed templates
-            ## in calculation
-            #temp_rebinned = util.log_rebin(wav_range, temp_flux,
-            #                               velscale=self.v/velscale_ratio)[0]
-            temp_rebinned = util.log_rebin(wav_range, convolved_temp,
-                                          velscale=self.v/velscale_ratio)[0]
-            nor_temp = temp_rebinned / np.median(temp_rebinned)
-            temp_spec.append(nor_temp)
-            
-        temp_rebinned, self.temp_wav_rebinned, vtemp = util.log_rebin(wav_range, convolved_temp,
-                                                                velscale=self.v/velscale_ratio)
-        #temp_spec = np.array(temp_spec).T
-        temp_spec = np.swapaxes(np.array(temp_spec), 0, 1)
 
-        return temp_spec
+        if all_temp_file is not None:
+            temp_spectra = np.loadtxt(all_temp_file)
+        elif all_temp_flux_array is not None:
+            temp_spectra = all_temp_flux_array
+        else:
+            temp_spectra = []
+            for i, file in enumerate(templates):
+                temp_spectra.append(spec1d.Spec1d(file, informat=informat,
+                                                  verbose=False)['flux'])
+            temp_spectra = np.array(temp_spectra).T
+
+        if isinstance(sigma_diff, np.ndarray):
+            pass
+        else:
+            sigma_diff = np.full(len(wav_temp), sigma_diff)
+
+        #print(len(wav_temp), len(temp_spectra))
+        convolved_temp = util.varsmooth(wav_temp, temp_spectra, sigma_diff)
+
+        if wav_dispersion=='constant':
+            temp_spec_rebinned, self.temp_wav_rebinned, vtemp = util.log_rebin(wav_range,
+                                                                    convolved_temp,
+                                                       velscale=self.v/velscale_ratio)
+        else:
+            temp_spec_rebinned, self.temp_wav_rebinned, vtemp = util.log_rebin(wav_temp,
+                                                                    convolved_temp,
+                                                       velscale=self.v/velscale_ratio)
+        lam_temp = np.exp(self.temp_wav_rebinned)
+        norm_range = np.exp(self.wav_rebinned)
+        band = (norm_range[0] <= lam_temp) & (lam_temp <= norm_range[-1])
+        flux = np.nanmedian(temp_spec_rebinned[band], axis=0) 
+        temp_spec_rebinned /= flux
+        #     temp_data = spec1d.Spec1d(file, informat=informat, verbose=False)
+        #     temp_flux = temp_data['flux']
+        #     if isinstance(sigma_diff, np.ndarray):
+        #         convolved_temp = util.gaussian_filter1d(temp_flux, sigma_diff)
+        #     else:
+        #         convolved_temp = temp_flux
+        
+        ## It seems I haven't actually used the smoothed templates
+        ## in calculation
+        #temp_rebinned = util.log_rebin(wav_range, temp_flux,
+        #                               velscale=self.v/velscale_ratio)[0]
+        # temp_rebinned = util.log_rebin(wav_range, convolved_temp,
+        #                               velscale=self.v/velscale_ratio)[0]
+        # nor_temp = temp_rebinned / np.median(temp_rebinned)
+        # temp_spec.append(nor_temp)
+            
+        # temp_spec_rebinned, self.temp_wav_rebinned, vtemp = util.log_rebin(wav_range, convolved_temp,
+        #                                                         velscale=self.v/velscale_ratio)
+        # temp_spec_rebinned /= np.median(temp_spec_rebinned)
+        # #temp_spec = np.array(temp_spec).T
+        # temp_spec = np.swapaxes(np.array(temp_spec), 0, 1)
+
+        return temp_spec_rebinned #temp_spec
 
 #-----------------------------------------------------------------------
     
@@ -537,10 +586,17 @@ class Veldis(spec1d.Spec1d):
                         doplot=doplot, verbose=verbose)
         else:
             self.temp_spec = temp_spec
-            
+
+        ### this is to incorporate mask generated through sigma clipping
         if mask_reg is not None:
             self.mask_region = self.masking(pixel_range=mask_reg)
-
+        else:
+            try:
+                if self.mask_region is not None:
+                    mask_reg = True
+            except:
+                pass
+    
         if degree is None:
             deg = np.arange(4, 6)
         else:
@@ -549,10 +605,14 @@ class Veldis(spec1d.Spec1d):
         """Setup the containers to store velocity dispersion and error 
            values """
         vel_dis = np.zeros(len(deg)) 
-        error = np.zeros(len(deg))
+        error_vdis = np.zeros(len(deg))
         best_fit = []
         temp_weight = []
+        add_deg_weight = []
+        mul_deg_weight = []
         mean_vel = np.zeros(len(deg))
+        error_vel = np.zeros(len(deg))
+        fit_chi2 = np.zeros(len(deg))
         """good pixels are the pixels which have been used in the fit"""
         good_pixels = []    
         
@@ -577,10 +637,14 @@ class Veldis(spec1d.Spec1d):
            
             mean_vel[i] = pp.sol[0]
             vel_dis[i] = pp.sol[1]
-            error[i] = pp.error[1]
+            error_vel[i] = pp.error[0]*np.sqrt(pp.chi2) ## formal statistical error of 2 kinmeatics component when Chi2/DOF ~ 1
+            error_vdis[i] = pp.error[1]*np.sqrt(pp.chi2)
+            fit_chi2[i] = pp.chi2
             best_fit.append(pp.bestfit)
             good_pixels.append(pp.goodpixels)
             temp_weight.append(pp.weights)
+            add_deg_weight.append(pp.polyweights)
+            mul_deg_weight.append(pp.mpolyweights)
             if plot:
                 plt.figure()
 
@@ -589,11 +653,15 @@ class Veldis(spec1d.Spec1d):
                                                               if w>10]
         self.mean_vel = mean_vel
         self.vel_dis = vel_dis
-        self.error = error
+        self.error_vel = error_vel
+        self.error_vdis = error_vdis
+        self.fit_chi2 = fit_chi2
         self.deg = deg
         self.best_fit = best_fit
         self.goodpixels = good_pixels
         self.temp_weight = temp_weight
+        self.add_poly_weight = add_deg_weight
+        self.mul_poly_weight = mul_deg_weight
 
 #----------------------------------------------------------------------------
 

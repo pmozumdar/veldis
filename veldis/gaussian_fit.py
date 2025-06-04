@@ -42,7 +42,7 @@ class Gaussfit(object):
             if np.max(sky)==0 and np.min(sky)==0:
                 print('\nsky data only contains zeros')
                 if 'var' in self.spec.columns:
-                    self.sky = np.sqrt(self.spec['var'])
+                    self.sky = self.spec['var'] ## variance not noise as Tommaso suggested
                     print("\nvariance is being used as sky model.")
                 else:
                     print("\nError: Calculating sigma of instrument's" \
@@ -53,7 +53,7 @@ class Gaussfit(object):
                 print("\nsky model is avaiable in the spectrum.")
             
         elif 'var' in self.spec.columns:
-            self.sky = np.sqrt(self.spec['var'])
+            self.sky = self.spec['var'] ## variance not noise as Tommaso suggested
             print("\nsky data is not available, so variance is being " \
                   "used as sky model.")
         else:
@@ -210,11 +210,13 @@ class Gaussfit(object):
             for i, p in enumerate(wav_sky_line):
                 
                 cen[i]= np.median(p)
-        
-                if len(p) >= width:
-                    wd[i] = len(p)
-                else:
-                    wd[i] = width 
+                try:
+                    if len(p) >= width:
+                        wd[i] = len(p)
+                    else:
+                        wd[i] = width 
+                except:
+                    wd[i] = width
                     
             plt.figure()
             plt.plot(self.wav, self.sky)
@@ -227,8 +229,10 @@ class Gaussfit(object):
             
 #-----------------------------------------------------------------------            
     
-    def fit_gauss(self, wavrange=None, flux_sky_line=None, 
-                  wav_sky_line=None):
+    def fit_gauss(self, wavrange=None, flux_sky_line=None, wav_sky_line=None, 
+                  up_sigma_threshold=10.0, low_sigma_threshold=0.3, mean_pos_threshold=2.0, 
+                  gof_threshold=5.0, chi2_threshold=1.0, only_good_fit=False,
+                 norm_flux=False):
         """
         This function fits each sky line to a Gaussian profile. Before 
         performing the fit each flux array has been normalized with the 
@@ -244,88 +248,153 @@ class Gaussfit(object):
             self.flux_sky_line, \
                       self.wav_sky_line =  self.collect_skydata(wavrange)
             
-        model_gauss = models.Gaussian1D()        
+        model_gauss = models.Gaussian1D() + models.Polynomial1D(degree=0)     
         fitter_gauss = fitting.LevMarLSQFitter()
             
         """Fit each skyline to Gaussian profile and plot"""
-        best_fit = []
-        
+        best_fit, bad_fit, good_fit_skyline = [], [], []
+
         for f, w in zip(self.flux_sky_line, self.wav_sky_line):
-            
-            f = f / np.median(f)
+            if norm_flux:
+                y = f / np.median(f)
+            else:
+                y = f
             x = w - np.median(w)
-            y = f - np.min(f)
+            # y = f #- np.min(f)
             
             best_fit_gauss = fitter_gauss(model_gauss, x, y)
-            best_fit.append(best_fit_gauss)
+            residuals = y - best_fit_gauss(x)
+            #residual_sig_est = np.sqrt(np.sum(residuals**2) /(len(x)-4))
+            reduced_chi2 = np.sum((residuals/np.std(y))**2) /(len(x)-4)
+            rms_residual =  np.std(residuals)
+            #print(f'rms residual {rms_residual}')
+            #print(residuals)
+            bad_fit_mask = np.abs(residuals)>gof_threshold*rms_residual
             
-            print(best_fit_gauss)
+            print(f'reduced chi2 : {reduced_chi2}')
+            if np.sum(bad_fit_mask) > 1:
+                print(f'residual higher than {gof_threshold} times rms_residual')
             
-            plt.figure()
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-            ax1.plot(w, f)
-            ax1.set_title('Original sky data')
-            ax1.set_xlabel('Wavelength')
-            ax1.set_ylabel('Relative flux')
-
-
-            ax2.plot(x, y, label='shifted sky data') 
-            ax2.plot(x, best_fit_gauss(x), 'r', label='Gaussian fit')
-            ax2.set_title('Fit to Gaussian')
-            ax2.set_xlabel('shifted wavelength')
-            ax2.set_ylabel('shifted relative flux')
-            plt.legend()
-            plt.show()
+            ### Reject bad fits
+            if best_fit_gauss.stddev_0.value > up_sigma_threshold or best_fit_gauss.stddev_0.value < low_sigma_threshold: # Reject very broad Gaussians
+                bad_fit.append(best_fit_gauss)
+            elif best_fit_gauss.amplitude_0.value < 0 :  # Reject negative amplitudes
+                bad_fit.append(best_fit_gauss)
+            elif np.abs(best_fit_gauss.mean_0.value - 0) > mean_pos_threshold : # Mean too far from expected
+                bad_fit.append(best_fit_gauss)
+            elif np.sum(bad_fit_mask) > 1: # bad fit atleast at one pixel
+                bad_fit.append(best_fit_gauss)
+            elif reduced_chi2 > chi2_threshold: # High chi-square
+                bad_fit.append(best_fit_gauss)
+            else:
+                best_fit.append(best_fit_gauss)
+                good_fit_skyline.append(np.round(np.median(w), 2))
+                if only_good_fit:
+                    print(best_fit_gauss)
+                    median_w = np.round(np.median(w), 2)
+                    print(f'median wav : {median_w}')
+                    
+                    plt.figure()
+                    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+        
+                    ax1.plot(w, f)
+                    ax1.set_title('Original sky data')
+                    ax1.set_xlabel('Wavelength')
+                    ax1.set_ylabel('Relative flux')
+        
+        
+                    ax2.plot(x, y, label='shifted sky data') 
+                    ax2.plot(x, best_fit_gauss(x), 'r', label='Gaussian fit')
+                    ax2.set_title('Fit to Gaussian')
+                    ax2.set_xlabel('shifted wavelength')
+                    ax2.set_ylabel('shifted relative flux')
+                    plt.legend()
+                    plt.show()
+                
+            if not only_good_fit:
+                print(best_fit_gauss)
+                
+                plt.figure()
+                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    
+                ax1.plot(w, f)
+                ax1.set_title('Original sky data')
+                ax1.set_xlabel('Wavelength')
+                ax1.set_ylabel('Relative flux')
+    
+    
+                ax2.plot(x, y, label='shifted sky data') 
+                ax2.plot(x, best_fit_gauss(x), 'r', label='Gaussian fit')
+                ax2.set_title('Fit to Gaussian')
+                ax2.set_xlabel('shifted wavelength')
+                ax2.set_ylabel('shifted relative flux')
+                plt.legend()
+                plt.show()
             
-        return  best_fit
+        return  best_fit, good_fit_skyline
     
 #-----------------------------------------------------------------------            
 
-    def sigma_inst(self, best_fit=None, doplot=True, ylim=None):
+    def sigma_inst(self, best_fit, good_fit_skyline, wavrange_to_fit=None,
+                   doplot=True, exclude_wav=[], ylim_km=None, ylim_ang=None,
+                  plot_axline=None):
         """
         Collect the 'stddev' of the fitted skylines.
         """
-         
+
+        c = 299792.458 # km/s
+        
         if best_fit is None:
             print("\nError: need to provide a list of best fit "\
                   "model, none given.")
         else:
-            sig = []
-            for i, p in enumerate(best_fit):
-                sig.append(p.stddev.value)
+            sig_ang = []
+            included_wav = []
+            
+            for i, (p, w) in enumerate(zip(best_fit, good_fit_skyline)):
+                if w not in exclude_wav:
+                    sig_ang.append(p.stddev_0.value)
+                    included_wav.append(w)
+                    
+            sig_ang, included_wav = np.array(sig_ang), np.array(included_wav)
+            fwhm_ang = sig_ang * 2.355
+            sig_km = (sig_ang/included_wav)*c
+            fwhm_km = sig_km *2.355
 
-            avg_sig = np.sum(sig) / len(sig)
-            print('average : %f' %avg_sig)
-            self.sig = sig
-
+            avg_sig_ang = np.sum(sig_ang) / len(sig_ang)
+            avg_sig_km = np.sum(sig_km) / len(sig_km)
+            print('average sigma (Ang): %f' %avg_sig_ang)
+            print('average FWHM (Ang): %f' %(avg_sig_ang*2.355))
+            print('average sigma (km): %f' %avg_sig_km)
+            print('average FWHM (km): %f' %(avg_sig_km*2.355))
+            self.sig_ang, self.sig_km = sig_ang, sig_km
+            self.fwhm_ang, self.fwhm_km = fwhm_ang, fwhm_km
+            self.final_fitted_wav = included_wav
+            
         if doplot:
+            fig, ax = plt.subplots(2, 1, figsize=(8, 6))
+            plt.subplots_adjust(hspace=0.02)
             
-            wav = np.zeros(len(self.wav_sky_line))
-            fwhm = np.zeros(len(self.wav_sky_line))
+            ax[0].plot(included_wav, sig_km, '.', ms=10)
+            ax[0].set_ylabel('Sigma (km/s)')
+            ax[0].set_xticks([])
+            ax[0].axhline(y=avg_sig_km, color='black', linestyle='-')
+            ax[0].axhline(y=avg_sig_km*1.1, color='black', linestyle='--')
+            ax[0].axhline(y=avg_sig_km*0.9, color='black', linestyle='--')
+            if plot_axline is not None:
+                ax[0].axhline(y=plot_axline, color='red', linestyle='-')
+            if ylim_km is not None:
+                ax[0].set_ylim(ylim_km[0], ylim_km[1])
             
-            for i, p in enumerate(self.wav_sky_line):
-                wav[i] = np.median(p)
-                fwhm[i] = sig[i] * 2.355
-            self.fwhm = fwhm  
+            ax[1].plot(included_wav, sig_ang, '.', ms=10)
+            ax[1].set_ylabel('Sigma (Ang)')
+            ax[1].axhline(y=avg_sig_ang, color='black', linestyle='-')
+            ax[1].axhline(y=avg_sig_ang*1.1, color='black', linestyle='--')
+            ax[1].axhline(y=avg_sig_ang*0.9, color='black', linestyle='--')
+            if ylim_ang is not None:
+                ax[1].set_ylim(ylim_ang[0], ylim_ang[1])
+            ax[1].set_xlabel('median wavelength of selected sky lines')
             
-            plt.figure()
-            ax1 = plt.subplot(211)
-            plt.plot(wav, sig, '.', ms=10)
-            #ax1.set_xticklabels([])
-            plt.setp(ax1.get_xticklabels(), visible=False)
-            plt.ylabel('Sigma')
-            if ylim is not None:
-                plt.ylim(ylim[0], ylim[1])
-            plt.subplots_adjust(hspace=0.001)
-            
-            ax2 = plt.subplot(212, sharex=ax1)
-            plt.plot(wav, fwhm, '.', ms=10)
-            plt.xlabel('median wavelength of selected sky lines')
-            plt.ylabel('FWHM')
-            plt.setp(ax2.get_xticklabels(), visible=True)
-            if ylim is not None:
-                plt.ylim(ylim[0]*2.355, ylim[1]*2.355)
                 
 #----------------------------------------------------------------------- 
 
